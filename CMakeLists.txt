@@ -15,6 +15,7 @@ endif()
 
 find_package(Threads REQUIRED)
 find_package(OpenMP REQUIRED)
+find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 # PostgreSQL (libpqxx)
@@ -40,6 +41,7 @@ target_link_libraries(embedding_engine
         ${PQXX_LIBRARIES}
         /usr/local/lib/libfaiss.a   # link it manually see README.md 
         openblas
+        CURL::libcurl
 )
 
 target_compile_options(embedding_engine PRIVATE
