@@ -1,7 +1,6 @@
 # Embedding Engine
 
-A high-performance **C++ embedding pipeline** for research paper ingestion and retrieval.  
-The engine reads paper metadata from a database, processes PDFs into chunks, generates embeddings using an external embedding service, and stores them in **FAISS** for efficient similarity search.
+C++ pipeline to fetch PDFs from database or web, split into chunks, and send to embedding server for ResearchQ.
 
 This project is a core component of the **Final Year RAG (Retrieval-Augmented Generation)** system.
 
