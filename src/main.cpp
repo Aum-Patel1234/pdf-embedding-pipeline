@@ -4,6 +4,7 @@
 #include <pqxx/pqxx>
 
 #include "../include/embedding_engine/db.hpp"
+#include "../include/recursive_character_text_splitter.hpp"
 
 int main() {
   // libpqxx: just declare a connection pointer (not connecting)
@@ -15,6 +16,9 @@ int main() {
 
   // FAISS: declare a simple index
   faiss::IndexFlatL2 index(768);  // 768-dim embeddings
+
+  RecursiveCharacterTextSplitter r;
+  r.checkSplitter();
 
   std::cout << "Build successful: libpqxx + FAISS linked\n";
   return 0;
