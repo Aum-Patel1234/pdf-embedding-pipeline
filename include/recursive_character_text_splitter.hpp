@@ -8,8 +8,8 @@
 #include <vector>
 
 constexpr std::string_view separators[] = {"\n\n", "\n", " ", ""};
-constexpr uint16_t chunkSize = 100;
-constexpr uint8_t chunkOverlap = 20;
+constexpr uint16_t chunkSize = 1000;
+constexpr uint8_t chunkOverlap = 200;
 
 class RecursiveCharacterTextSplitter {
  private:
@@ -17,5 +17,6 @@ class RecursiveCharacterTextSplitter {
 
  public:
   std::vector<std::string_view> getChunks(std::string_view data) const;
+  std::string cleanText(std::string_view data);
   void checkSplitter() const;
 };

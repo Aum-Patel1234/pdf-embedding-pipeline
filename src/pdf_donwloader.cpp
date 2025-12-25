@@ -3,6 +3,10 @@
 namespace fs = std::filesystem;
 
 // IMPORTANT: https://everything.curl.dev/transfers/callbacks/write.html
+// contents → pointer to the raw bytes received (as void*)
+// size → size of each element (usually 1)
+// nmemb → number of elements (so total bytes = size * nmemb)
+// userp → custom pointer (e.g., std::ofstream*)
 static size_t write_callback(void* contents, size_t size, size_t nmeb, void* userp) {
   std::ofstream* ofs = static_cast<std::ofstream*>(userp);
   ofs->write(static_cast<char*>(contents), size * nmeb);

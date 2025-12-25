@@ -1,13 +1,16 @@
 #include <faiss/IndexFlat.h>
 
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <pqxx/pqxx>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 #include "../include/db.hpp"
 #include "../include/pdf_donwloader.hpp"
+#include "../include/pdf_processor.hpp"
 #include "../include/recursive_character_text_splitter.hpp"
 
 int main() {
@@ -29,6 +32,23 @@ int main() {
     const std::string_view file_path = "temp/temp_file1.pdf";
 
     savePDFtoTextFile(url, file_path);
+    std::string content = read_file(file_path);
+    content = r.cleanText(content);
+    std::vector<std::string_view> chunks = r.getChunks(content);
+
+    std::ofstream ofs("temp/temp_chunks.txt", std::ios::out);
+    if (!ofs) {
+      std::cerr << "Failed to open output file.\n";
+      return 1;
+    }
+    for (size_t i = 0; i < chunks.size(); ++i) {
+      const auto& chunk = chunks[i];
+      ofs << "=== Chunk " << i << " (" << chunk.size() << " chars) ===\n";
+      ofs.write(chunk.data(), chunk.size());
+      ofs << "\n\n";
+    }
+    ofs.close();
+
   } catch (const std::exception& e) {
     std::cerr << "PDF download failed: " << e.what() << '\n';
   }

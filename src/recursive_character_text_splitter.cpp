@@ -1,5 +1,26 @@
 #include "../include/recursive_character_text_splitter.hpp"
 
+std::string RecursiveCharacterTextSplitter::cleanText(std::string_view data) {
+  std::string result;
+  result.reserve(data.size());
+
+  bool in_space = false;
+  for (char c : data) {
+    if (std::isspace(static_cast<unsigned char>(c))) {
+      if (!in_space) {
+        result += ' ';  // replace all whitespace sequences with a single space
+        in_space = true;
+      }
+    } else if (std::isprint(static_cast<unsigned char>(c))) {
+      result += c;
+      in_space = false;
+    }
+    // else skip non-printable characters
+  }
+
+  return result;
+}
+
 std::vector<std::pair<size_t, size_t>> RecursiveCharacterTextSplitter::splitTextIntoChunks(
     std::string_view data) const {
   std::vector<std::pair<size_t, size_t>> ranges;

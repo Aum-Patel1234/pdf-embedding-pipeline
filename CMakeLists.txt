@@ -20,6 +20,7 @@ find_package(PkgConfig REQUIRED)
 
 # PostgreSQL (libpqxx)
 pkg_check_modules(PQXX REQUIRED libpqxx)
+pkg_check_modules(POPPLER_CPP REQUIRED poppler-cpp)
 
 file(GLOB_RECURSE SOURCES
     src/*.cpp
@@ -31,6 +32,7 @@ target_include_directories(embedding_engine
     PRIVATE
         include
         ${PQXX_INCLUDE_DIRS}
+        ${POPPLER_CPP_INCLUDE_DIRS}
         /usr/local/include        # FAISS headers
 )
 
@@ -42,6 +44,7 @@ target_link_libraries(embedding_engine
         /usr/local/lib/libfaiss.a   # link it manually see README.md 
         openblas
         CURL::libcurl
+        ${POPPLER_CPP_LIBRARIES} 
 )
 
 target_compile_options(embedding_engine PRIVATE
