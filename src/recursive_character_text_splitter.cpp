@@ -1,5 +1,7 @@
 #include "../include/recursive_character_text_splitter.hpp"
 
+#include <cstddef>
+
 std::string RecursiveCharacterTextSplitter::cleanText(std::string_view data) {
   std::string result;
   result.reserve(data.size());
@@ -42,6 +44,7 @@ std::vector<std::pair<size_t, size_t>> RecursiveCharacterTextSplitter::splitText
 
   while (start < data.size()) {
     size_t maxEnd = std::min(start + chunkSize, data.size());
+    size_t searchEnd = std::min(maxEnd + lookahead, data.size());
 
     if (sep.empty()) {
       ranges.emplace_back(start, maxEnd);
@@ -51,13 +54,13 @@ std::vector<std::pair<size_t, size_t>> RecursiveCharacterTextSplitter::splitText
 
     size_t it = data.find(sep, start);
 
-    if (it == std::string_view::npos || it >= maxEnd) {
-      // no separator inside the current window -> take up to maxEnd
+    if (it == std::string_view::npos || it > searchEnd) {
+      // no separator inside the current window + lookahead -> take up to maxEnd
       ranges.emplace_back(start, maxEnd);
       start = maxEnd;
     } else {
       // separator found inside window -> split at separator start
-      ranges.emplace_back(start, it);
+      ranges.emplace_back(start, it + sep.size());
       start = it + sep.size();
     }
   }
@@ -85,6 +88,14 @@ std::vector<std::string_view> RecursiveCharacterTextSplitter::getChunks(std::str
     size_t overlap = std::min(static_cast<size_t>(chunkOverlap), prev_len);
 
     s = (s >= overlap) ? (s - overlap) : 0;
+
+    while (s < e && !std::isspace(static_cast<unsigned char>(data[s]))) {
+      ++s;
+    }
+    // skip the whitespace itself
+    while (s < e && std::isspace(static_cast<unsigned char>(data[s]))) {
+      ++s;
+    }
 
     finalChunks.emplace_back(data.substr(s, e - s));
   }
