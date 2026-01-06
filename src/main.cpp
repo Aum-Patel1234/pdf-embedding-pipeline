@@ -1,6 +1,7 @@
 #include <faiss/IndexFlat.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -13,7 +14,13 @@
 #include "../include/init.hpp"
 #include "../include/pdf_donwloader.hpp"
 #include "../include/pdf_processor.hpp"
+#include "../include/pipeline.hpp"
 #include "../include/recursive_character_text_splitter.hpp"
+
+// constexpr int TOTAL_PAPERS = 80649;  // i have in database
+constexpr uint8_t THREADS = 6;
+// constexpr uint32_t LIMITS[6] = {13442, 13442, 13442, 13441, 13441, 13441};
+constexpr uint32_t LIMITS[6] = {20, 20, 20, 20, 20, 20};
 
 int main() {
   loadenv("../.env");  // running from inside build/ dir
@@ -23,41 +30,33 @@ int main() {
     return 1;
   }
 
-  std::unique_ptr<pqxx::connection> conn = connectToDb(db_url);
-  pqxx::work tx{*conn};
-
   const std::string topic = "natural language processing";
+  uint32_t offset = 0;
 
-  int count = tx.exec_params("SELECT COUNT(*) FROM research_papers WHERE topic = $1", topic)[0][0].as<int>();
-  // tx.commit();
-  std::cout << "Count = " << count << "\n";
-
-  std::vector<ResearchPaper> papers;
-  papers.reserve(10);
-  getPapersFromDb(tx, papers, topic, 0, 10);
-  tx.commit();
-
-  // Print all research papers
-  for (const auto& paper : papers) {
-    std::cout << "ID: " << paper.id << "\n";
-    // std::cout << "Source: " << paperSourceToString(paper.source) << "\n";
-    std::cout << "Source ID: " << paper.source_id << "\n";
-    std::cout << "Title: " << paper.title << "\n";
-    std::cout << "PDF URL: " << paper.pdf_url << "\n";
-
-    std::cout << "Authors: ";
-    for (size_t i = 0; i < paper.authors.size(); ++i) {
-      std::cout << paper.authors[i];
-      if (i != paper.authors.size() - 1) std::cout << ", ";
-    }
-    std::cout << "\n";
-
-    std::cout << "DOI: " << paper.doi << "\n";
-    std::cout << "Embedding processed: " << (paper.embedding_processed ? "Yes" : "No") << "\n";
-    std::cout << "Created at: " << paper.created_at << "\n";
-    std::cout << "Topic: " << paper.topic << "\n";
-    std::cout << "---------------------------\n";
+  std::vector<std::thread> threads;
+  threads.reserve(THREADS);
+  for (uint8_t i = 0; i < THREADS; ++i) {
+    threads.emplace_back(embedding_pipeline, db_url, topic, offset, LIMITS[i]);
+    offset += LIMITS[i];
   }
+
+  // wait for all threads
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  // std::unique_ptr<pqxx::connection> conn = connectToDb(db_url);
+  // pqxx::work tx{*conn};
+
+  // int count = tx.exec_params("SELECT COUNT(*) FROM research_papers WHERE topic = $1", topic)[0][0].as<int>();
+  // // tx.commit();
+  // std::cout << "Count = " << count << "\n";
+
+  // std::vector<ResearchPaper> papers;
+  // papers.reserve(10);
+  // getPapersFromDb(tx, papers, topic, 0, 10);
+  // tx.commit();
+
   // FAISS: declare a simple index
   faiss::IndexFlatL2 index(768);  // 768-dim embeddings
 
@@ -89,9 +88,6 @@ int main() {
   // } catch (const std::exception& e) {
   //   std::cerr << "PDF download failed: " << e.what() << '\n';
   // }
-
-  size_t thread = std::thread::hardware_concurrency();
-  std::cout << "\nthreads = " << thread << "\n";
 
   return 0;
 }

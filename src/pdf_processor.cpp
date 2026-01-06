@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 // IMPORTANT: https://stackoverflow.com/questions/2732178/extracting-text-from-pdf-with-poppler-c
 std::string read_file(std::string_view file_path) {
   if (!fs::exists(file_path)) {
-    std::cout << "File path does not exist to read it.";
+    std::cout << "File path " << file_path << " does not exist to read it.";
     return "";
   }
 
@@ -22,7 +22,7 @@ std::string read_file(std::string_view file_path) {
     return {};
   }
   int pagesNbr = doc->pages();
-  std::cout << "Page count: " << pagesNbr << "\n";
+  // std::cout << "Page count: " << pagesNbr << "\n";
 
   std::string str;
   for (int i = 0; i < pagesNbr; i++) {

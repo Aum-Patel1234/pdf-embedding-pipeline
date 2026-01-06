@@ -19,5 +19,4 @@ class RecursiveCharacterTextSplitter {
  public:
   std::vector<std::string_view> getChunks(std::string_view data) const;
   std::string cleanText(std::string_view data);
-  void checkSplitter() const;
 };
