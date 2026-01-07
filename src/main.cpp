@@ -20,7 +20,7 @@
 // constexpr int TOTAL_PAPERS = 80649;  // i have in database
 constexpr uint8_t THREADS = 6;
 // constexpr uint32_t LIMITS[6] = {13442, 13442, 13442, 13441, 13441, 13441};
-constexpr uint32_t LIMITS[6] = {20, 20, 20, 20, 20, 20};
+constexpr uint32_t LIMITS[6] = {2, 2, 2, 2, 2, 2};
 
 int main() {
   loadenv("../.env");  // running from inside build/ dir
