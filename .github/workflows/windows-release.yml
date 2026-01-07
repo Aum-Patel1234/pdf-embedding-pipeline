@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          ${{ github.workspace }}/vcpkg/vcpkg install libpqxx poppler-cpp curl --triplet x64-windows
+          ${{ github.workspace }}/vcpkg/vcpkg install --triplet x64-windows
 
       - name: Configure CMake
         run: |
