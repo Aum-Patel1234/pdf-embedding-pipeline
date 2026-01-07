@@ -21,15 +21,16 @@ jobs:
         with:
           vcpkgDirectory: ${{ github.workspace }}/vcpkg
 
-      - name: Install packages with vcpkg
+      # ---------------- Manifest Mode ----------------
+      - name: Install dependencies via vcpkg (manifest mode)
         run: |
-          ${{ github.workspace }}/vcpkg/vcpkg install faiss:x64-windows libpqxx:x64-windows poppler:x64-windows curl:x64-windows openblas:x64-windows
+          ${{ github.workspace }}/vcpkg/vcpkg install
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake \
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
             -DUSE_FAISS=ON
 
       - name: Build
