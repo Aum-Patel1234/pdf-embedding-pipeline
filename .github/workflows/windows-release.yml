@@ -1,0 +1,37 @@
+name: Windows Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
+
+      - name: Install dependencies
+        run: |
+          vcpkg install libpqxx poppler-cpp curl openmp --triplet x64-windows
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build
+        run: |
+          cmake --build build --config Release
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedding_engine_windows
+          path: build/Release/embedding_engine.exe
