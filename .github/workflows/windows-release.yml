@@ -10,21 +10,30 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: lukka/run-vcpkg@v11
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+
+      - name: Install dependencies
+        run: |
+          ${{ github.workspace }}/vcpkg/vcpkg install libpqxx poppler-cpp curl --triplet x64-windows
 
       - name: Configure CMake
         run: |
           cmake -S . -B build `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build
         run: |
           cmake --build build --config Release
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
         with:
           name: embedding_engine_windows
           path: build/Release/embedding_engine.exe
