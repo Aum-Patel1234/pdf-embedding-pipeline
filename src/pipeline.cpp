@@ -5,6 +5,18 @@
 #include "../include/pdf_donwloader.hpp"
 #include "../include/pdf_processor.hpp"
 #include "../include/recursive_character_text_splitter.hpp"
+#include "embeddings_client.hpp"
+
+void printEmbeddings(const std::vector<std::vector<float>>& embeddings) {
+  for (size_t i = 0; i < embeddings.size(); ++i) {
+    std::cout << "Embedding " << i << " (" << embeddings[i].size() << " dims): [";
+    for (size_t j = 0; j < embeddings[i].size(); ++j) {
+      std::cout << embeddings[i][j];
+      if (j + 1 < embeddings[i].size()) std::cout << ", ";
+    }
+    std::cout << "]\n";
+  }
+}
 
 void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint32_t offset, uint32_t limit) {
   std::unique_ptr<pqxx::connection> conn = connectToDb(DB_CONN_STR);
@@ -25,7 +37,6 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
       std::string content = read_file(file_path);
       content = r.cleanText(content);
       std::vector<std::string_view> chunks = r.getChunks(content);
-      // std::vector<Document> documents = getDocumentsFromChunks(chunks);
 
       const std::string chunks_file = "temp/temp_chunks_" + std::to_string(offset) + ".txt";
       std::ofstream ofs(chunks_file, std::ios::out);
@@ -41,6 +52,10 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
         ofs << "\n\n";
       }
       ofs.close();
+
+      faiss::IndexFlatL2 index;
+      std::vector<std::vector<float>> embeddings = getEmbeddings("GEMINI_API_KEY", index, chunks, researchPaper);
+      printEmbeddings(embeddings);
     }
 
   } catch (const std::exception& e) {

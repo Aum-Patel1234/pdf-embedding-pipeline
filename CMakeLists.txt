@@ -30,45 +30,34 @@ find_package(OpenMP REQUIRED)
 find_package(CURL REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-if(UNIX)
+if(WIN32)
+    # Windows: vcpkg provides CONFIG files
+    find_package(pqxx CONFIG REQUIRED)
+    find_package(poppler-cpp CONFIG REQUIRED)
+
+else()
+    # Linux: prefer pkg-config, fallback to CONFIG
     find_package(PkgConfig QUIET)
+
     if(PkgConfig_FOUND)
-        pkg_check_modules(PQXX_PKG QUIET libpqxx)
-        if(PQXX_PKG_FOUND)
-            message(STATUS "Using libpqxx via pkg-config")
-            if(NOT TARGET pqxx::pqxx)
-                add_library(pqxx::pqxx INTERFACE IMPORTED)
-                set_target_properties(pqxx::pqxx PROPERTIES
-                    INTERFACE_INCLUDE_DIRECTORIES "${PQXX_PKG_INCLUDE_DIRS}"
-                    INTERFACE_LINK_LIBRARIES "${PQXX_PKG_LIBRARIES}"
-                )
-            endif()
-        else()
-            find_package(pqxx CONFIG REQUIRED)
+        pkg_check_modules(PQXX REQUIRED libpqxx)
+        pkg_check_modules(POPPLER REQUIRED poppler-cpp)
+
+        if(NOT TARGET pqxx::pqxx)
+            add_library(pqxx::pqxx INTERFACE IMPORTED)
+            target_include_directories(pqxx::pqxx INTERFACE ${PQXX_INCLUDE_DIRS})
+            target_link_libraries(pqxx::pqxx INTERFACE ${PQXX_LIBRARIES})
         endif()
 
-        pkg_check_modules(POPPLER_PKG QUIET poppler-cpp)
-        if(POPPLER_PKG_FOUND)
-            message(STATUS "Using poppler-cpp via pkg-config")
-            if(NOT TARGET poppler-cpp::poppler-cpp)
-                add_library(poppler-cpp::poppler-cpp INTERFACE IMPORTED)
-                set_target_properties(poppler-cpp::poppler-cpp PROPERTIES
-                    INTERFACE_INCLUDE_DIRECTORIES "${POPPLER_PKG_INCLUDE_DIRS}"
-                    INTERFACE_LINK_LIBRARIES "${POPPLER_PKG_LIBRARIES}"
-                )
-            endif()
-        else()
-            find_package(poppler-cpp CONFIG REQUIRED)
+        if(NOT TARGET poppler-cpp::poppler-cpp)
+            add_library(poppler-cpp::poppler-cpp INTERFACE IMPORTED)
+            target_include_directories(poppler-cpp::poppler-cpp INTERFACE ${POPPLER_INCLUDE_DIRS})
+            target_link_libraries(poppler-cpp::poppler-cpp INTERFACE ${POPPLER_LIBRARIES})
         endif()
     else()
-        # pkg-config not available — try CONFIG mode
         find_package(pqxx CONFIG REQUIRED)
         find_package(poppler-cpp CONFIG REQUIRED)
     endif()
-else()
-    # Windows / non-UNIX: use vcpkg/config mode
-    find_package(pqxx CONFIG REQUIRED)
-    find_package(poppler-cpp CONFIG REQUIRED)
 endif()
 
 

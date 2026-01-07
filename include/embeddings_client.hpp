@@ -1,6 +1,10 @@
 #pragma once
+#include <faiss/IndexFlat.h>
+
 #include <string>
 #include <vector>
+
+#include "../models/document_model.hpp"
 
 struct ContentPart {
   std::string text;
@@ -28,3 +32,7 @@ struct Embedding {
 struct BatchEmbedResponse {
   std::vector<Embedding> embeddings;  // one per request
 };
+
+// URL: https://ai.google.dev/gemini-api/docs/embeddings#rest
+std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname, faiss::IndexFlatL2& index,
+                                              const std::vector<std::string_view>& chunks, const ResearchPaper& paper);
