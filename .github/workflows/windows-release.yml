@@ -8,7 +8,6 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -20,6 +19,15 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgDirectory: ${{ github.workspace }}/vcpkg
+
+      # ---------------- Cache vcpkg packages ----------------
+      - name: Cache vcpkg packages
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/vcpkg/packages
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
 
       # ---------------- Manifest Mode ----------------
       - name: Install dependencies via vcpkg (manifest mode)

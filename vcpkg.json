@@ -7,6 +7,7 @@
     "poppler",
     "curl",
     "faiss",
-    "openblas"
+    "openblas",
+    "nlohmann-json"
   ]
 }

@@ -1,5 +1,7 @@
 #include "../include/pipeline.hpp"
 
+#include <vector>
+
 #include "../include/pdf_donwloader.hpp"
 #include "../include/pdf_processor.hpp"
 #include "../include/recursive_character_text_splitter.hpp"
@@ -23,6 +25,7 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
       std::string content = read_file(file_path);
       content = r.cleanText(content);
       std::vector<std::string_view> chunks = r.getChunks(content);
+      // std::vector<Document> documents = getDocumentsFromChunks(chunks);
 
       const std::string chunks_file = "temp/temp_chunks_" + std::to_string(offset) + ".txt";
       std::ofstream ofs(chunks_file, std::ios::out);

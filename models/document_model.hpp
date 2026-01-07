@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 enum class PaperSource { ARXIV, SEMANTIC_SCHOLAR, SPRINGER_NATURE };
@@ -38,3 +39,5 @@ struct Document {
 
   // bool embedding_processed = false;  // has embedding been generated
 };
+
+inline std::vector<Document> getDocumentsFromChunks(const std::vector<std::string_view>& papers) {}
