@@ -34,5 +34,5 @@ struct BatchEmbedResponse {
 };
 
 // URL: https://ai.google.dev/gemini-api/docs/embeddings#rest
-std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname, faiss::IndexFlatL2& index,
+std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname,
                                               const std::vector<std::string_view>& chunks, const ResearchPaper& paper);

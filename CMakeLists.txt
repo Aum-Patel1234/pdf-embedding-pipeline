@@ -35,6 +35,25 @@ if(WIN32)
     find_package(pqxx CONFIG REQUIRED)
     find_package(poppler-cpp CONFIG REQUIRED)
 
+    set(PQXX_TARGET "")
+    if(TARGET pqxx::pqxx)
+        set(PQXX_TARGET pqxx::pqxx)
+    elseif(TARGET libpqxx::libpqxx)
+        set(PQXX_TARGET libpqxx::libpqxx)
+    endif()
+
+    if(PQXX_TARGET STREQUAL "")
+        message(FATAL_ERROR
+            "Could not find libpqxx (pqxx). Install libpqxx via vcpkg or add its share dir to CMAKE_PREFIX_PATH.\n"
+            "  - For vcpkg (manifest): add \"libpqxx\" to vcpkg.json\n"
+            "  - Or run: vcpkg install libpqxx:x64-windows\n"
+            "  - Ensure CMake is invoked with -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        )
+    endif()
+
+    # exposed variable PQXX_TARGET will be used when linking
+    set(PQXX_TARGET ${PQXX_TARGET} CACHE STRING "pqxx target")
+    message(STATUS "Using PQXX target: ${PQXX_TARGET}")
 else()
     # Linux: prefer pkg-config, fallback to CONFIG
     find_package(PkgConfig QUIET)
@@ -137,6 +156,7 @@ target_link_libraries(embedding_engine PRIVATE
 
     nlohmann_json::nlohmann_json
     pqxx::pqxx
+    ${PQXX_TARGET}
     poppler-cpp::poppler-cpp
     faiss::faiss
 )

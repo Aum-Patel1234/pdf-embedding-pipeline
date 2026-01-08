@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string_view>
 
+#include "../include/logger.hpp"
 #include "poppler/cpp/poppler-document.h"
 #include "poppler/cpp/poppler-page.h"
 
@@ -18,7 +19,7 @@ std::string read_file(std::string_view file_path) {
 
   poppler::document* doc = poppler::document::load_from_file(file_path.data());
   if (!doc) {
-    std::cerr << "Failed to open PDF: " << file_path << "\n";
+    log_error("Failed to open PDF: " + std::string(file_path));
     return {};
   }
   int pagesNbr = doc->pages();
