@@ -14,7 +14,7 @@ int main() {
   loadenv("../.env");  // running from inside build/ dir
   const char* db_url = std::getenv("DATABASE_URL");
   if (!db_url) {
-    log_error("DATABASE_URL is absent.");
+    logging::log_error("DATABASE_URL is absent.");
     return 1;
   }
 

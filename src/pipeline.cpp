@@ -4,14 +4,18 @@
 #include <faiss/index_io.h>
 #include <faiss/utils/distances.h>
 
+#include <cassert>
+#include <mutex>
+#include <string>
 #include <vector>
 
 #include "../include/consts.hpp"
+#include "../include/embeddings_client.hpp"
+#include "../include/faiss_store.hpp"
 #include "../include/logger.hpp"
 #include "../include/pdf_donwloader.hpp"
 #include "../include/pdf_processor.hpp"
 #include "../include/recursive_character_text_splitter.hpp"
-#include "embeddings_client.hpp"
 
 void printEmbeddings(const std::vector<std::vector<float>>& embeddings) {
   for (size_t i = 0; i < embeddings.size(); ++i) {
@@ -34,7 +38,6 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
 
   RecursiveCharacterTextSplitter r;
   faiss::IndexFlatIP* index = nullptr;
-  size_t embedding_dim = 0;
 
   try {
     for (auto& researchPaper : papers) {
@@ -50,7 +53,7 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
       std::ofstream ofs(chunks_file, std::ios::out);
 
       if (!ofs) {
-        log_error("Failed to open output file.");
+        logging::log_error("Failed to open output file.");
         return;
       }
       for (size_t i = 0; i < chunks.size(); ++i) {
@@ -61,28 +64,22 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
       }
       ofs.close();
 
-      std::vector<std::vector<float>> embeddings = getEmbeddings(GEMINI_API_KEY, chunks, researchPaper);
+      std::vector<float> embeddings = getEmbeddings(GEMINI_API_KEY, chunks, researchPaper);
       if (embeddings.empty()) continue;
+      assert(embeddings.size() == OUTPUT_DIM * chunks.size());
       // printEmbeddings(embeddings);
 
+      size_t n = embeddings.size() / OUTPUT_DIM;
+
       if (!index) {
-        embedding_dim = embeddings[0].size();
-        index = new faiss::IndexFlatIP(embedding_dim);
+        index = new faiss::IndexFlatIP(OUTPUT_DIM);
       }
 
-      size_t n = embeddings.size();
-      size_t dim = embedding_dim;
-
-      // ---- Flatten embeddings ----
-      std::vector<float> flat;
-      flat.reserve(n * dim);
-      for (const auto& e : embeddings) flat.insert(flat.end(), e.begin(), e.end());
-
       // ---- Normalize for cosine similarity ----
-      faiss::fvec_renorm_L2(dim, n, flat.data());
+      faiss::fvec_renorm_L2(OUTPUT_DIM, n, embeddings.data());
 
       // ---- Add to FAISS ----
-      index->add(n, flat.data());
+      index->add(n, embeddings.data());
 
       // ---- TODO: store metadata ----
       // storeChunkMetadata(researchPaper.id, chunks);
@@ -91,13 +88,15 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
     }
 
     if (index && index->ntotal > 0) {
+      // TODO: make the faiss write threadsafe using mutex locks
+      std::lock_guard<std::mutex> lock_guard(faiss_utils::faiss_index_mutex());
       faiss::write_index(index, "papers.faiss");
-      std::cout << "FAISS index saved. Total vectors: " << index->ntotal << "\n";
+      logging::log_checkpoint("FAISS index saved. Total vectors: " + std::to_string(index->ntotal));
     }
 
     delete index;
 
   } catch (const std::exception& e) {
-    log_error("PDF download failed: " + std::string(e.what()));
+    logging::log_error("PDF download failed: " + std::string(e.what()));
   }
 }

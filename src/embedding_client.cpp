@@ -1,7 +1,7 @@
 #include <curl/curl.h>
 #include <faiss/IndexFlat.h>  // if you need the FAISS type here
 
-#include <iostream>
+#include <cmath>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
@@ -19,11 +19,11 @@ static size_t curl_write_cb(void* contents, size_t size, size_t nmemb, void* use
   return size * nmemb;
 }
 
-std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname,
-                                              const std::vector<std::string_view>& chunks, const ResearchPaper& paper) {
+std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::vector<std::string_view>& chunks,
+                                 const ResearchPaper& paper) {
   const char* api_key_c = std::getenv(gemini_api_key_envname);
   if (!api_key_c) {
-    log_error("Environment variable '" + std::string(gemini_api_key_envname) + "' is not set.");
+    logging::log_error("Environment variable '" + std::string(gemini_api_key_envname) + "' is not set.");
     return {};
   }
   std::string api_key(api_key_c);
@@ -55,7 +55,7 @@ std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname
   // Initialize CURL
   CURL* curl = curl_easy_init();
   if (!curl) {
-    log_error("curl_easy_init() failed");
+    logging::log_error("curl_easy_init() failed");
     return {};
   }
 
@@ -76,7 +76,7 @@ std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname
 
   CURLcode res = curl_easy_perform(curl);
   if (res != CURLE_OK) {
-    log_error("curl error: " + std::string(curl_easy_strerror(res)));
+    logging::log_error("curl error: " + std::string(curl_easy_strerror(res)));
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return {};
@@ -85,7 +85,7 @@ std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname
   long http_code = 0;
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
   if (http_code < 200 || http_code >= 300) {
-    log_error("HTTP error code: " + std::to_string(http_code) + "\nResponse body:\n" + resp);
+    logging::log_error("HTTP error code: " + std::to_string(http_code) + "\nResponse body:\n" + resp);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return {};
@@ -96,14 +96,16 @@ std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname
   try {
     j = json::parse(resp);
   } catch (const std::exception& e) {
-    log_error("Failed to parse JSON response: " + std::string(e.what()) + "\nResponse body:\n" + resp);
+    logging::log_error("Failed to parse JSON response: " + std::string(e.what()) + "\nResponse body:\n" + resp);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return {};
   }
 
-  std::vector<std::vector<float>> all_embeddings;
-  all_embeddings.reserve(documents.size());
+  // std::vector<std::vector<float>> all_embeddings;
+  // all_embeddings.reserve(documents.size());
+  std::vector<float> all_embeddings;
+  all_embeddings.reserve(OUTPUT_DIM * documents.size());
 
   // Response formats: top-level "responses" array (batch), or top-level "embeddings".
   if (j.contains("responses") && j["responses"].is_array()) {
@@ -111,51 +113,49 @@ std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname
       // primary format: r["embedding"]["values"]
       if (r.contains("embedding") && r["embedding"].contains("values")) {
         const auto& vals = r["embedding"]["values"];
-        std::vector<float> emb;
-        emb.reserve(vals.size());
-        for (const auto& v : vals) emb.push_back(v.get<float>());
-        all_embeddings.push_back(std::move(emb));
+        if (vals.size() != OUTPUT_DIM) {
+          logging::log_error("Embedding dimension mismatch: got " + std::to_string(vals.size()) + ", expected " +
+                             std::to_string(OUTPUT_DIM));
+          return {};
+        }
+        for (const auto& v : vals) all_embeddings.push_back(v.get<float>());
       } else if (r.contains("embeddings") && r["embeddings"].is_array()) {
         // alternate: r["embeddings"] -> array of embedding objects
         for (const auto& embobj : r["embeddings"]) {
           if (embobj.contains("values")) {
             const auto& vals = embobj["values"];
-            std::vector<float> emb;
-            emb.reserve(vals.size());
-            for (const auto& v : vals) emb.push_back(v.get<float>());
-            all_embeddings.push_back(std::move(emb));
+            if (vals.size() != OUTPUT_DIM) {
+              logging::log_error("Embedding dimension mismatch: got " + std::to_string(vals.size()) + ", expected " +
+                                 std::to_string(OUTPUT_DIM));
+              return {};
+            }
+            for (const auto& v : vals) all_embeddings.push_back(v.get<float>());
           }
         }
       } else {
         // unknown response node: print for debugging
-        log_error(std::string("Unexpected response entry (debug): ") + r.dump(2));
+        logging::log_error(std::string("Unexpected response entry (debug): ") + r.dump(2));
       }
     }
   } else if (j.contains("embeddings") && j["embeddings"].is_array()) {
     for (const auto& embobj : j["embeddings"]) {
       if (embobj.contains("values")) {
         const auto& vals = embobj["values"];
-        std::vector<float> emb;
-        emb.reserve(vals.size());
-        for (const auto& v : vals) emb.push_back(v.get<float>());
-        all_embeddings.push_back(std::move(emb));
+        if (vals.size() != OUTPUT_DIM) {
+          logging::log_error("Embedding dimension mismatch: got " + std::to_string(vals.size()) + ", expected " +
+                             std::to_string(OUTPUT_DIM));
+          return {};
+        }
+        for (const auto& v : vals) all_embeddings.push_back(v.get<float>());
       }
     }
   } else {
-    log_error("Unexpected JSON response format:\n" + j.dump(2));
+    logging::log_error("Unexpected JSON response format:\n" + j.dump(2));
   }
 
   // Cleanup
   curl_slist_free_all(headers);
   curl_easy_cleanup(curl);
-
-  // Optionally validate dimensionality
-  for (size_t i = 0; i < all_embeddings.size(); ++i) {
-    if (static_cast<int>(all_embeddings[i].size()) != OUTPUT_DIM) {
-      log_error("Warning: embedding " + std::to_string(i) + " has size " + std::to_string(all_embeddings[i].size()) +
-                " (expected " + std::to_string(OUTPUT_DIM) + ")");
-    }
-  }
 
   return all_embeddings;
 }
