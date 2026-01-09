@@ -11,3 +11,5 @@ constexpr const char* MODEL_NAME = "models/gemini-embedding-001";
 constexpr const char* TASK_TYPE = "RETRIEVAL_DOCUMENT";
 constexpr int OUTPUT_DIM = 768;
 constexpr std::size_t BATCH_SIZE = 16;
+// constexpr int NLIST = 4096;
+// constexpr int NPROBE = 16;

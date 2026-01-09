@@ -1,4 +1,5 @@
 #include <faiss/IndexFlat.h>
+// #include <faiss/IndexIVFFlat.h>
 #include <faiss/index_io.h>
 
 #include <cstdint>
@@ -13,6 +14,7 @@
 
 int main() {
   loadenv("../.env");  // running from inside build/ dir
+  // loadenv();
   const char* db_url = std::getenv("DATABASE_URL");
   if (!db_url) {
     logging::log_error("DATABASE_URL is absent.");
@@ -37,6 +39,8 @@ int main() {
 
   // merge faiss indexes
   faiss::IndexFlatIP final_index(OUTPUT_DIM);
+  // NOTE: while retriving or searching IndexIVFFlat does do good in RAM - CPU
+  // faiss::IndexIVFFlat index(&final_index, OUTPUT_DIM, NLIST, faiss::METRIC_INNER_PRODUCT);
   for (uint8_t i = 0; i < THREADS; ++i) {
     std::string path = "faiss/papers_" + std::to_string(i) + ".faiss";
     if (!std::filesystem::exists(path)) {

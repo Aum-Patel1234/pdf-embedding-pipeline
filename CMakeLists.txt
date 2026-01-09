@@ -80,53 +80,86 @@ if(WIN32)
 endif()
 
 # ------------------ FAISS ------------------
-if(UNIX)
-    find_path(FAISS_INCLUDE_DIR NAMES faiss/IndexFlat.h PATHS /usr/include /usr/local/include)
-    find_library(FAISS_LIBRARY NAMES faiss faiss_avx2 faiss_avx512 PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu)
-    if(NOT FAISS_INCLUDE_DIR OR NOT FAISS_LIBRARY)
-        message(FATAL_ERROR "FAISS not found. Install libfaiss-dev or build FAISS and set FAISS_INCLUDE_DIR/FAISS_LIBRARY.")
-    endif()
+option(USE_FAISS "Enable FAISS support" ON)
 
-    find_package(BLAS QUIET)
-    find_package(LAPACK QUIET)
+if(NOT USE_FAISS)
+    message(WARNING "FAISS support disabled by user (USE_FAISS=OFF)")
+else()
+    if(UNIX)
+        # unix: try existing logic (pkg-config / system install)
+        find_path(FAISS_INCLUDE_DIR NAMES faiss/IndexFlat.h PATHS /usr/include /usr/local/include ENV PATHS)
+        find_library(FAISS_LIBRARY NAMES faiss faiss_avx2 faiss_avx512 PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu)
 
-    set(EXTRA_LINK_LIBS "")
-    if(DEFINED BLAS_LIBRARIES AND NOT "${BLAS_LIBRARIES}" STREQUAL "")
-        list(APPEND EXTRA_LINK_LIBS ${BLAS_LIBRARIES})
-    endif()
-    if(DEFINED LAPACK_LIBRARIES AND NOT "${LAPACK_LIBRARIES}" STREQUAL "")
-        list(APPEND EXTRA_LINK_LIBS ${LAPACK_LIBRARIES})
-    endif()
+        if(FAISS_INCLUDE_DIR AND FAISS_LIBRARY)
+            message(STATUS "Found FAISS include: ${FAISS_INCLUDE_DIR}")
+            message(STATUS "Found FAISS lib: ${FAISS_LIBRARY}")
+            if(NOT TARGET faiss::faiss)
+                add_library(faiss::faiss UNKNOWN IMPORTED)
+                set_target_properties(faiss::faiss PROPERTIES
+                    IMPORTED_LOCATION "${FAISS_LIBRARY}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${FAISS_INCLUDE_DIR}"
+                )
+            endif()
+        else()
+            message(FATAL_ERROR "FAISS not found. Install libfaiss-dev or build FAISS and set FAISS_INCLUDE_DIR/FAISS_LIBRARY.")
+        endif()
 
-    if(EXTRA_LINK_LIBS STREQUAL "")
-        find_library(OPENBLAS_LIB NAMES openblas libopenblas PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu)
-        if(OPENBLAS_LIB)
-            list(APPEND EXTRA_LINK_LIBS ${OPENBLAS_LIB})
+        # BLAS / LAPACK best-effort
+        find_package(BLAS QUIET)
+        find_package(LAPACK QUIET)
+        set(EXTRA_LINK_LIBS "")
+        if(DEFINED BLAS_LIBRARIES AND NOT "${BLAS_LIBRARIES}" STREQUAL "")
+            list(APPEND EXTRA_LINK_LIBS ${BLAS_LIBRARIES})
+        endif()
+        if(DEFINED LAPACK_LIBRARIES AND NOT "${LAPACK_LIBRARIES}" STREQUAL "")
+            list(APPEND EXTRA_LINK_LIBS ${LAPACK_LIBRARIES})
+        endif()
+        if(EXTRA_LINK_LIBS STREQUAL "")
+            find_library(OPENBLAS_LIB NAMES openblas libopenblas PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu)
+            if(OPENBLAS_LIB)
+                list(APPEND EXTRA_LINK_LIBS ${OPENBLAS_LIB})
+                if(NOT TARGET OpenBLAS::OpenBLAS)
+                    add_library(OpenBLAS::OpenBLAS UNKNOWN IMPORTED)
+                    set_target_properties(OpenBLAS::OpenBLAS PROPERTIES IMPORTED_LOCATION "${OPENBLAS_LIB}")
+                endif()
+            else()
+                message(WARNING "No BLAS/LAPACK found automatically. FAISS may require OpenBLAS/LAPACK.")
+            endif()
+        endif()
+
+    else() # Windows
+        # Prefer CMake package config provided by vcpkg if available
+        find_package(faiss CONFIG QUIET)
+        if(TARGET faiss::faiss)
+            message(STATUS "Using imported FAISS target from package: faiss::faiss")
+        else()
+            # fallback: try to find headers + library and create IMPORTED target
+            find_path(FAISS_INCLUDE_DIR NAMES faiss/IndexFlat.h
+                      HINTS "$ENV{VCPKG_ROOT}/installed/x64-windows/include" "$ENV{VCPKG_ROOT}/installed/x64-windows/share")
+            find_library(FAISS_LIBRARY NAMES faiss faiss_release faiss_static
+                         HINTS "$ENV{VCPKG_ROOT}/installed/x64-windows/lib" "$ENV{VCPKG_ROOT}/installed/x64-windows/debug/lib")
+
+            if(FAISS_INCLUDE_DIR AND FAISS_LIBRARY)
+                if(NOT TARGET faiss::faiss)
+                    add_library(faiss::faiss UNKNOWN IMPORTED)
+                    set_target_properties(faiss::faiss PROPERTIES
+                        IMPORTED_LOCATION "${FAISS_LIBRARY}"
+                        INTERFACE_INCLUDE_DIRECTORIES "${FAISS_INCLUDE_DIR}"
+                    )
+                    message(STATUS "Created imported target faiss::faiss (from FAISS_INCLUDE_DIR/FAISS_LIBRARY)")
+                endif()
+            else()
+                message(FATAL_ERROR "FAISS package not found. If using vcpkg, pass -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake. "
+                                    "Alternatively set FAISS_INCLUDE_DIR and FAISS_LIBRARY to the correct locations.")
+            endif()
+        endif()
+
+        # Windows: prefer vcpkg-provided OpenBLAS if present
+        find_package(OpenBLAS CONFIG QUIET)
+        if(TARGET OpenBLAS::OpenBLAS)
+            message(STATUS "Found OpenBLAS package")
         endif()
     endif()
-
-    if(EXTRA_LINK_LIBS STREQUAL "")
-        message(WARNING "No BLAS/LAPACK found automatically. FAISS may require OpenBLAS/LAPACK.")
-    endif()
-
-    if(NOT TARGET faiss::faiss)
-        add_library(faiss::faiss UNKNOWN IMPORTED)
-        set_target_properties(faiss::faiss PROPERTIES
-            IMPORTED_LOCATION "${FAISS_LIBRARY}"
-            INTERFACE_INCLUDE_DIRECTORIES "${FAISS_INCLUDE_DIR}"
-            INTERFACE_LINK_LIBRARIES "${EXTRA_LINK_LIBS}"
-        )
-    endif()
-
-    if(NOT TARGET OpenBLAS::OpenBLAS AND OPENBLAS_LIB)
-        add_library(OpenBLAS::OpenBLAS UNKNOWN IMPORTED)
-        set_target_properties(OpenBLAS::OpenBLAS PROPERTIES
-            IMPORTED_LOCATION "${OPENBLAS_LIB}"
-        )
-    endif()
-else()
-    find_package(faiss CONFIG REQUIRED)
-    find_package(OpenBLAS CONFIG REQUIRED)
 endif()
 
 # ------------------ SOURCES ------------------
