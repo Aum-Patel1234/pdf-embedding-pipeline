@@ -159,3 +159,48 @@ std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::
 
   return all_embeddings;
 }
+
+// std::vector<float> testEmbedding(const char* gemini_api_key_envname) {
+//   // Ensure env exists (sanity check)
+//   if (!std::getenv(gemini_api_key_envname)) {
+//     throw std::runtime_error("GEMINI API key not found in env");
+//   }
+//
+//   // Stable storage for string_view
+//   const std::string text = "This is a simple test sentence for embeddings.";
+//   std::vector<std::string_view> chunks{std::string_view(text)};
+//
+//   ResearchPaper dummy{};
+//   dummy.id = -1;
+//   dummy.title = "embedding_test";
+//   dummy.topic = "test";
+//
+//   std::vector<float> embeddings;
+//
+//   try {
+//     embeddings = getEmbeddings(gemini_api_key_envname, chunks, dummy);
+//   } catch (const std::exception& e) {
+//     std::cerr << "[EMBED TEST ERROR] " << e.what() << "\n";
+//     return {};
+//   }
+//
+//   if (embeddings.empty()) {
+//     std::cerr << "[EMBED TEST] Empty embedding returned\n";
+//     return {};
+//   }
+//
+//   if (embeddings.size() != OUTPUT_DIM) {
+//     std::cerr << "[EMBED TEST] Unexpected dimension: " << embeddings.size() << " (expected " << OUTPUT_DIM << ")\n";
+//     return {};
+//   }
+//
+//   std::cout << "[EMBED TEST] SUCCESS\n";
+//   std::cout << "Dimension: " << embeddings.size() << "\n";
+//   std::cout << "First 5 values: ";
+//   for (size_t i = 0; i < 5; ++i) {
+//     std::cout << embeddings[i] << " ";
+//   }
+//   std::cout << "\n";
+//
+//   return embeddings;
+// }

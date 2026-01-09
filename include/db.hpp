@@ -14,6 +14,11 @@ constexpr const char* GET_PAPERS_QUERY =
     "ORDER BY id "
     "LIMIT $2 OFFSET $3";
 
+constexpr const char* UPDATE_EMBEDDING_PROCESSED_QUERY =
+    "UPDATE research_papers "
+    "SET embedding_processed = true "
+    "WHERE id = $1";
+
 // NOTE: unique_ptr& to avoid taking ownership
 void getPapersFromDb(pqxx::work& tx, std::vector<ResearchPaper>& papers, const std::string topic, const uint32_t offset,
                      const uint32_t limit);
