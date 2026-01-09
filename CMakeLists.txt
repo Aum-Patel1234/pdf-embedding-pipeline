@@ -60,8 +60,12 @@ message(STATUS "Using PQXX target: ${PQXX_TARGET}")
 
 # ------------------ POPPLER ------------------
 if(WIN32)
-    find_package(poppler-cpp CONFIG REQUIRED)
-else()
+    # find_package(poppler-cpp CONFIG REQUIRED)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(POPPLER_CPP REQUIRED IMPORTED_TARGET poppler-cpp)
+
+    add_library(poppler-cpp::poppler-cpp ALIAS PkgConfig::POPPLER_CPP)
+  else()
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_check_modules(POPPLER REQUIRED poppler-cpp)

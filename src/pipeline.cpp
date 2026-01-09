@@ -5,6 +5,8 @@
 #include <faiss/utils/distances.h>
 
 #include <cassert>
+#include <cstdio>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -28,41 +30,44 @@ void printEmbeddings(const std::vector<std::vector<float>>& embeddings) {
   }
 }
 
-void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint32_t offset, uint32_t limit) {
+void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::string& topic, uint32_t offset,
+                        uint32_t limit) {
   std::unique_ptr<pqxx::connection> conn = connectToDb(DB_CONN_STR);
   pqxx::work tx{*conn};
 
   std::vector<ResearchPaper> papers;
   getPapersFromDb(tx, papers, topic, offset, limit);
+  // TODO:: update the field embeddings_processed = true in DB
   tx.commit();
 
   RecursiveCharacterTextSplitter r;
-  faiss::IndexFlatIP* index = nullptr;
+  faiss::IndexFlatIP index(OUTPUT_DIM);
+  const std::string file_path = "temp/temp_file_" + std::to_string(thread_id) + ".pdf";
+  const std::string chunks_file = "temp/temp_chunks_" + std::to_string(thread_id) + ".txt";
 
   try {
     for (auto& researchPaper : papers) {
-      const std::string_view url = researchPaper.pdf_url;
-      const std::string file_path = "temp/temp_file_" + std::to_string(offset) + ".pdf";
+      savePDFtoTextFile(researchPaper.pdf_url, file_path);
 
-      savePDFtoTextFile(url, file_path);
       std::string content = read_file(file_path);
       content = r.cleanText(content);
+
+      // NOTE: can lead to lifetime_issues but currently good
       std::vector<std::string_view> chunks = r.getChunks(content);
 
-      const std::string chunks_file = "temp/temp_chunks_" + std::to_string(offset) + ".txt";
-      std::ofstream ofs(chunks_file, std::ios::out);
-
+      // go to start of the file
+      std::ofstream ofs(chunks_file, std::ios::out | std::ios::trunc);
       if (!ofs) {
         logging::log_error("Failed to open output file.");
-        return;
+        continue;
       }
+
       for (size_t i = 0; i < chunks.size(); ++i) {
         const auto& chunk = chunks[i];
         ofs << "=== Chunk " << i << " (" << chunk.size() << " chars) ===\n";
         ofs.write(chunk.data(), chunk.size());
         ofs << "\n\n";
       }
-      ofs.close();
 
       std::vector<float> embeddings = getEmbeddings(GEMINI_API_KEY, chunks, researchPaper);
       if (embeddings.empty()) continue;
@@ -71,30 +76,26 @@ void embedding_pipeline(const char* DB_CONN_STR, const std::string& topic, uint3
 
       size_t n = embeddings.size() / OUTPUT_DIM;
 
-      if (!index) {
-        index = new faiss::IndexFlatIP(OUTPUT_DIM);
-      }
-
       // ---- Normalize for cosine similarity ----
       faiss::fvec_renorm_L2(OUTPUT_DIM, n, embeddings.data());
 
       // ---- Add to FAISS ----
-      index->add(n, embeddings.data());
+      index.add(n, embeddings.data());
 
       // ---- TODO: store metadata ----
       // storeChunkMetadata(researchPaper.id, chunks);
 
-      std::cout << "Indexed paper: " << researchPaper.title << " | vectors: " << n << "\n";
+      // std::cout << "Indexed paper: " << researchPaper.title << " | vectors: " << n << "\n";
     }
 
-    if (index && index->ntotal > 0) {
+    if (index.ntotal > 0) {
       // TODO: make the faiss write threadsafe using mutex locks
-      std::lock_guard<std::mutex> lock_guard(faiss_utils::faiss_index_mutex());
-      faiss::write_index(index, "papers.faiss");
-      logging::log_checkpoint("FAISS index saved. Total vectors: " + std::to_string(index->ntotal));
+      // std::lock_guard<std::mutex> lock_guard(faiss_utils::faiss_index_mutex());
+      // faiss::write_index(index.get(), "papers.faiss");
+      const std::string index_path = "faiss/papers_" + std::to_string(thread_id) + ".faiss";
+      faiss::write_index(&index, index_path.c_str());
+      logging::log_checkpoint("FAISS index saved. Total vectors: " + std::to_string(index.ntotal));
     }
-
-    delete index;
 
   } catch (const std::exception& e) {
     logging::log_error("PDF download failed: " + std::string(e.what()));
