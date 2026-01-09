@@ -38,8 +38,6 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
 
   std::vector<ResearchPaper> papers;
   getPapersFromDb(tx, papers, topic, offset, limit);
-  // TODO:: update the field embeddings_processed = true in DB
-  // tx.commit();
 
   RecursiveCharacterTextSplitter r;
   faiss::IndexFlatIP index(OUTPUT_DIM);
@@ -116,7 +114,6 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
     }
 
     if (index.ntotal > 0) {
-      // TODO: make the faiss write threadsafe using mutex locks
       // std::lock_guard<std::mutex> lock_guard(faiss_utils::faiss_index_mutex());
       // faiss::write_index(index.get(), "papers.faiss");
       const std::string index_path = "faiss/papers_" + std::to_string(thread_id) + ".faiss";

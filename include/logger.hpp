@@ -1,7 +1,9 @@
+#include <chrono>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <mutex>
+#include <sstream>
 #include <string>
 
 namespace logging {
@@ -45,7 +47,6 @@ inline std::string timestamp() {
   return oss.str();
 }
 
-// TODO: make this write threadsafe
 inline void log_error(const std::string& msg) {
   std::lock_guard<std::mutex> lock_guard(log_mutex());
   error_log_stream() << "[ERROR] [" << timestamp() << "] " << msg << '\n';
