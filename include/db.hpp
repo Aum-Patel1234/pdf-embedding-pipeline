@@ -2,25 +2,11 @@
 
 #include <pqxx/pqxx>
 
+#include "../include/queries.hpp"
 #include "../models/document_model.hpp"
+#include "../models/embedding_chunks.hpp"
 
 std::unique_ptr<pqxx::connection> connectToDb(const char* DB_CONN_STR);
-
-constexpr const char* GET_PAPERS_QUERY =
-    "SELECT id, source, source_id, title, pdf_url, authors, doi, "
-    "embedding_processed, created_at, topic "
-    "FROM research_papers "
-    "WHERE topic = $1 AND embedding_processed = false "
-    "ORDER BY id "
-    "LIMIT $2 OFFSET $3";
-
-constexpr const char* UPDATE_EMBEDDING_PROCESSED_QUERY =
-    "UPDATE research_papers "
-    "SET embedding_processed = true "
-    "WHERE id = $1";
-
-// NOTE: unique_ptr& to avoid taking ownership
 void getPapersFromDb(pqxx::work& tx, std::vector<ResearchPaper>& papers, const std::string topic, const uint32_t offset,
                      const uint32_t limit);
-// ResearchPaper papers[100]; // size = 100
-// getPapersFromDb(papers, 0, 100, 100);
+void insert_embedding_chunk(pqxx::work& txn, const EmbeddingChunk& chunk);

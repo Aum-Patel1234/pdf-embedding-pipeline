@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <pqxx/internal/concat.hxx>
 #include <vector>
 
 std::unique_ptr<pqxx::connection> connectToDb(const char* DB_CONN_STR) {
@@ -52,4 +53,10 @@ void getPapersFromDb(pqxx::work& tx, std::vector<ResearchPaper>& papers, const s
 
     papers.push_back(std::move(paper));
   }
+}
+
+void insert_embedding_chunk(pqxx::work& txn, const EmbeddingChunk& chunk) {
+  txn.exec_params(INSERT_EMBEDDING_CHUNK_QUERY, chunk.faiss_id, chunk.document_id, chunk.chunk_index, chunk.page_number,
+                  chunk.chunk_text, chunk.embedding_model);
+  // int64_t db_id = row[0].as<int64_t>();
 }

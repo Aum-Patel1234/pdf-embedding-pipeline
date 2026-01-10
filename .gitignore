@@ -1,6 +1,7 @@
 .env
 build/
 store/
+.cache/
 
 # Prerequisites
 *.d

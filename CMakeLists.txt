@@ -167,6 +167,11 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 add_executable(embedding_engine ${SOURCES})
 target_include_directories(embedding_engine PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
+if (WIN32)
+    # Define NOMINMAX for the target so windows.h doesn't define min/max macros
+    target_compile_definitions(embedding_engine PRIVATE NOMINMAX)
+endif()
+
 # ------------------ LINK ------------------
 target_link_libraries(embedding_engine PRIVATE
     Threads::Threads
