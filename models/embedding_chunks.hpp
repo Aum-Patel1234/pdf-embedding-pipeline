@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -16,3 +15,5 @@ struct EmbeddingChunk {
   std::string embedding_model;
   // std::chrono::system_clock::time_point created_at;
 };
+
+// void storeChunkMetadata(pqxx::work* tx, ) {}

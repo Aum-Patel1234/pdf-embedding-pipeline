@@ -26,6 +26,9 @@ inline void loadenv(const std::string& path = ".env") {
     // causing dangling references and undefined behavior. Use std::string to own the data.
     std::string key = line.substr(0, pos);
     std::string val = line.substr(pos + 1);
+    if (!val.empty() && val.front() == '"' && val.back() == '"') {
+      val = val.substr(1, val.size() - 2);
+    }
 
     set_env(key.c_str(), val.c_str());
   }

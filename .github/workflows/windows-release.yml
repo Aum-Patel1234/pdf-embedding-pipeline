@@ -9,6 +9,9 @@ jobs:
   build-windows:
     runs-on: windows-latest
 
+    permissions:
+          contents: write # REQUIRED for releases
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,3 +53,12 @@ jobs:
         with:
           name: embedding_engine_windows
           path: build/Release/embedding_engine.exe
+
+
+      # ---------------- Upload to GitHub Release ----------------
+      - name: Upload EXE to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/Release/embedding_engine.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

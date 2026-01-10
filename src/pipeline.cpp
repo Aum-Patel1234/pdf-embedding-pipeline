@@ -87,6 +87,7 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
       faiss::write_index(&index, index_path.c_str());
 
       for (int id : processed_ids) tx.exec_params(UPDATE_EMBEDDING_PROCESSED_QUERY, id);
+      // IMPORTANT: if the thing fails then nothing will be commited
       tx.commit();
 
       logging::log_checkpoint("FAISS index saved. Total vectors: " + std::to_string(index.ntotal));
