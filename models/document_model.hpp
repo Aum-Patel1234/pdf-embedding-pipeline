@@ -27,31 +27,31 @@ struct ResearchPaper {
   std::string topic;
 };
 
-struct Document {
-  int64_t id;           // can be uint64_t but faiss expects int64_t so didnt changed
-  std::string content;  // full text of paper or chunk
-
-  PaperSource source;
-  std::string title;
-  std::string pdf_url;
-  std::string topic;
-  std::vector<std::string> authors;
-
-  // bool embedding_processed = false;  // has embedding been generated
-};
-
-inline std::vector<Document> getDocumentsFromChunks(const std::vector<std::string_view>& chunks,
-                                                    const ResearchPaper& researchPaper) {
-  std::vector<Document> documents;
-  documents.reserve(chunks.size());
-
-  int64_t doc_id = researchPaper.id * 1'000'000;
-
-  for (size_t i = 0; i < chunks.size(); ++i) {
-    documents.push_back(Document{doc_id + static_cast<int64_t>(i), std::string(chunks[i]), researchPaper.source,
-                                 researchPaper.title, researchPaper.pdf_url, researchPaper.topic,
-                                 researchPaper.authors});
-  }
-
-  return documents;
-}
+// struct Document {
+//   int64_t id;           // can be uint64_t but faiss expects int64_t so didnt changed
+//   std::string content;  // full text of paper or chunk
+//
+//   PaperSource source;
+//   std::string title;
+//   std::string pdf_url;
+//   std::string topic;
+//   std::vector<std::string> authors;
+//
+//   // bool embedding_processed = false;  // has embedding been generated
+// };
+//
+// inline std::vector<Document> getDocumentsFromChunks(const std::vector<std::string_view>& chunks,
+//                                                     const ResearchPaper& researchPaper) {
+//   std::vector<Document> documents;
+//   documents.reserve(chunks.size());
+//
+//   int64_t doc_id = researchPaper.id * 1'000'000;
+//
+//   for (size_t i = 0; i < chunks.size(); ++i) {
+//     documents.push_back(Document{doc_id + static_cast<int64_t>(i), std::string(chunks[i]), researchPaper.source,
+//                                  researchPaper.title, researchPaper.pdf_url, researchPaper.topic,
+//                                  researchPaper.authors});
+//   }
+//
+//   return documents;
+// }

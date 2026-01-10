@@ -1,14 +1,9 @@
 #include "../include/pipeline.hpp"
 
-#include <iostream>
+#include <utility>
+#include <vector>
 
-#include "../include/consts.hpp"
-#include "../include/embeddings_client.hpp"
-#include "../include/faiss_store.hpp"
-#include "../include/logger.hpp"
-#include "../include/pdf_donwloader.hpp"
-#include "../include/pdf_processor.hpp"
-#include "../include/recursive_character_text_splitter.hpp"
+#include "consts.hpp"
 
 void printEmbeddings(const std::vector<std::vector<float>>& embeddings) {
   for (size_t i = 0; i < embeddings.size(); ++i) {
@@ -65,18 +60,20 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
         // for debugging chunks
         write_to_temp_file_txt_to_debug(meaningful_chunks, chunks_file);
         // step 3 - get embeddings from the embedding_model
-        std::vector<float> embeddings = get_embeddings_from_embedding_model(meaningful_chunks, researchPaper);
+        auto result = get_embeddings_from_embedding_model(meaningful_chunks, researchPaper);
+        std::vector<std::vector<float>>& vec_of_embeddings = result.first;
+        std::vector<float>& flatten_embeddings = result.second;
 
         // step 4 - add it to the faiss_index
-        size_t n = embeddings.size() / OUTPUT_DIM;
+        size_t n = flatten_embeddings.size() / OUTPUT_DIM;
         // ---- Normalize for cosine similarity ----
-        faiss::fvec_renorm_L2(OUTPUT_DIM, n, embeddings.data());
+        faiss::fvec_renorm_L2(OUTPUT_DIM, n, flatten_embeddings.data());
         // ---- Add to FAISS ----
-        index.add(n, embeddings.data());
+        index.add(n, flatten_embeddings.data());
         processed_ids.push_back(researchPaper.id);
 
         // step 5 -  TODO: store metadata
-        // storeChunkMetadata(researchPaper.id, chunks);
+        // storeChunkMetadata(researchPaper.id, meaningful_chunks, vec_of_embeddings);
       }
     }
 
@@ -98,35 +95,46 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
   }
 }
 
-std::vector<float> get_embeddings_from_embedding_model(const std::vector<std::string_view>& chunks,
-                                                       const ResearchPaper& researchPaper) {
+std::pair<std::vector<std::vector<float>>, std::vector<float>> get_embeddings_from_embedding_model(
+    const std::vector<std::string_view>& chunks, const ResearchPaper& researchPaper) {
   // NOTE: do in batches as Gemini has rate-limit, see in consts.hpp
-  std::vector<float> embeddings;
-  embeddings.reserve(chunks.size() * OUTPUT_DIM);
+  std::vector<float> flatten_embeddings;
+  std::vector<std::vector<float>> all_embeddings;
+  all_embeddings.reserve(chunks.size());
+  flatten_embeddings.reserve(chunks.size() * OUTPUT_DIM);
+
   for (size_t i = 0; i < chunks.size(); i += BATCH_SIZE) {
     size_t end = std::min(i + BATCH_SIZE, chunks.size());
 
     std::vector<std::string_view> batch(chunks.begin() + i, chunks.begin() + end);
 
-    auto emb = getEmbeddings(GEMINI_API_KEY, batch, researchPaper);
-    if (emb.empty()) {
+    auto batch_embeddings = getEmbeddings(GEMINI_API_KEY, batch, researchPaper);
+    if (batch_embeddings.empty()) {
       logging::log_error("Embedding batch failed");
       break;
     }
 
-    embeddings.insert(embeddings.end(), emb.begin(), emb.end());
+    for (const auto& emb : batch_embeddings) {
+      if (emb.size() != OUTPUT_DIM) {
+        logging::log_error("Invalid embedding dimension");
+        continue;
+      }
+
+      all_embeddings.push_back(emb);
+      flatten_embeddings.insert(flatten_embeddings.end(), emb.begin(), emb.end());
+    }
 
     // rate-limit protection
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 
-  if (embeddings.size() != OUTPUT_DIM * chunks.size()) {
-    logging::log_error("Embedding incomplete: got " + std::to_string(embeddings.size()) + ", expected " +
-                       std::to_string(OUTPUT_DIM * chunks.size()));
+  if (all_embeddings.size() != chunks.size()) {
+    logging::log_error("Embedding incomplete: got " + std::to_string(all_embeddings.size()) + ", expected " +
+                       std::to_string(chunks.size()));
   }
   // printEmbeddings(embeddings);
 
-  return embeddings;
+  return {all_embeddings, flatten_embeddings};
 };
 
 void write_to_temp_file_txt_to_debug(const std::vector<std::string_view>& chunks, const std::string& chunks_file) {

@@ -1,3 +1,4 @@
+#pragma once
 
 // constexpr int TOTAL_PAPERS = 80649;  // i have in database
 #include <cstdint>

@@ -55,8 +55,14 @@ void getPapersFromDb(pqxx::work& tx, std::vector<ResearchPaper>& papers, const s
   }
 }
 
-void insert_embedding_chunk(pqxx::work& txn, const EmbeddingChunk& chunk) {
-  txn.exec_params(INSERT_EMBEDDING_CHUNK_QUERY, chunk.faiss_id, chunk.document_id, chunk.chunk_index, chunk.page_number,
-                  chunk.chunk_text, chunk.embedding_model);
+void insert_embedding_chunk(pqxx::work& tx, const EmbeddingChunk& chunk) {
+  tx.exec_params(INSERT_EMBEDDING_CHUNK_QUERY, chunk.faiss_id, chunk.document_id, chunk.chunk_index, chunk.page_number,
+                 chunk.chunk_text, chunk.embedding_model);
   // int64_t db_id = row[0].as<int64_t>();
+}
+
+void insert_embedding_vector(pqxx::work& tx, const EmbeddingVector& ev) {
+  const std::string embedding_str = to_pgvector(ev.embedding);
+
+  tx.exec_params(INSERT_EMBEDDING_VECTOR_QUERY, ev.embedding_chunk_id, embedding_str);
 }

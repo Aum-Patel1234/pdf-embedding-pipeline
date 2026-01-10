@@ -1,14 +1,7 @@
-#include <curl/curl.h>
-#include <faiss/IndexFlat.h>  // if you need the FAISS type here
-
-#include <cmath>
-#include <nlohmann/json.hpp>
-#include <string>
+#include <cstddef>
 #include <vector>
 
-#include "../include/consts.hpp"
 #include "../include/embeddings_client.hpp"
-#include "../include/logger.hpp"
 
 using json = nlohmann::json;
 
@@ -19,8 +12,8 @@ static size_t curl_write_cb(void* contents, size_t size, size_t nmemb, void* use
   return size * nmemb;
 }
 
-std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::vector<std::string_view>& chunks,
-                                 const ResearchPaper& paper) {
+std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname,
+                                              const std::vector<std::string_view>& chunks, const ResearchPaper& paper) {
   const char* api_key_c = std::getenv(gemini_api_key_envname);
   if (!api_key_c) {
     logging::log_error("Environment variable '" + std::string(gemini_api_key_envname) + "' is not set.");
@@ -29,13 +22,13 @@ std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::
   std::string api_key(api_key_c);
 
   // Build Documents from chunks
-  std::vector<Document> documents = getDocumentsFromChunks(chunks, paper);
+  // std::vector<Document> documents = getDocumentsFromChunks(chunks, paper);
 
   // Build JSON payload
   json payload;
   payload["requests"] = json::array();
 
-  for (const auto& doc : documents) {
+  for (const auto& chunk : chunks) {
     json req;
     req["model"] = MODEL_NAME;
     req["task_type"] = TASK_TYPE;
@@ -46,7 +39,7 @@ std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::
 
     // Each request corresponds to one chunk/document; keep single-part for clear chunk->embedding mapping
     json part;
-    part["text"] = doc.content;
+    part["text"] = std::string(chunk);
     req["content"]["parts"].push_back(part);
 
     payload["requests"].push_back(std::move(req));
@@ -73,6 +66,8 @@ std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::
   curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(payload_str.size()));
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
 
   CURLcode res = curl_easy_perform(curl);
   if (res != CURLE_OK) {
@@ -102,34 +97,49 @@ std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::
     return {};
   }
 
+  auto vec = get_vectors_from_response(j, chunks.size());
+  // Cleanup
+  curl_slist_free_all(headers);
+  curl_easy_cleanup(curl);
+
+  return vec;
+}
+
+std::vector<std::vector<float>> get_vectors_from_response(const json& j, const size_t documents_size) {
   // std::vector<std::vector<float>> all_embeddings;
   // all_embeddings.reserve(documents.size());
-  std::vector<float> all_embeddings;
-  all_embeddings.reserve(OUTPUT_DIM * documents.size());
+  std::vector<std::vector<float>> all_embeddings;
+  all_embeddings.reserve(documents_size);
+
+  auto process_values = [&](const json& vals) -> bool {
+    if (!vals.is_array() || vals.size() != OUTPUT_DIM) {
+      logging::log_error("Embedding dimension mismatch: got " + std::to_string(vals.size()) + ", expected " +
+                         std::to_string(OUTPUT_DIM));
+      return false;
+    }
+
+    std::vector<float> embedding;
+    embedding.reserve(OUTPUT_DIM);
+    for (const auto& v : vals) {
+      embedding.push_back(v.get<float>());
+    }
+
+    all_embeddings.push_back(std::move(embedding));
+    return true;
+  };
 
   // Response formats: top-level "responses" array (batch), or top-level "embeddings".
   if (j.contains("responses") && j["responses"].is_array()) {
     for (const auto& r : j["responses"]) {
       // primary format: r["embedding"]["values"]
       if (r.contains("embedding") && r["embedding"].contains("values")) {
-        const auto& vals = r["embedding"]["values"];
-        if (vals.size() != OUTPUT_DIM) {
-          logging::log_error("Embedding dimension mismatch: got " + std::to_string(vals.size()) + ", expected " +
-                             std::to_string(OUTPUT_DIM));
-          return {};
-        }
-        for (const auto& v : vals) all_embeddings.push_back(v.get<float>());
+        if (!process_values(r["embedding"]["values"])) return {};
+
       } else if (r.contains("embeddings") && r["embeddings"].is_array()) {
         // alternate: r["embeddings"] -> array of embedding objects
         for (const auto& embobj : r["embeddings"]) {
           if (embobj.contains("values")) {
-            const auto& vals = embobj["values"];
-            if (vals.size() != OUTPUT_DIM) {
-              logging::log_error("Embedding dimension mismatch: got " + std::to_string(vals.size()) + ", expected " +
-                                 std::to_string(OUTPUT_DIM));
-              return {};
-            }
-            for (const auto& v : vals) all_embeddings.push_back(v.get<float>());
+            if (!process_values(embobj["values"])) return {};
           }
         }
       } else {
@@ -140,22 +150,18 @@ std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::
   } else if (j.contains("embeddings") && j["embeddings"].is_array()) {
     for (const auto& embobj : j["embeddings"]) {
       if (embobj.contains("values")) {
-        const auto& vals = embobj["values"];
-        if (vals.size() != OUTPUT_DIM) {
-          logging::log_error("Embedding dimension mismatch: got " + std::to_string(vals.size()) + ", expected " +
-                             std::to_string(OUTPUT_DIM));
-          return {};
-        }
-        for (const auto& v : vals) all_embeddings.push_back(v.get<float>());
+        if (!process_values(embobj["values"])) return {};
       }
     }
   } else {
     logging::log_error("Unexpected JSON response format:\n" + j.dump(2));
   }
 
-  // Cleanup
-  curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
+  if (all_embeddings.size() != documents_size) {
+    logging::log_error("Embedding count mismatch: got " + std::to_string(all_embeddings.size()) + ", expected " +
+                       std::to_string(documents_size));
+    return {};
+  }
 
   return all_embeddings;
 }

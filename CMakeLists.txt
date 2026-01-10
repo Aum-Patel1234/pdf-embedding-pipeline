@@ -183,6 +183,13 @@ target_link_libraries(embedding_engine PRIVATE
     faiss::faiss
 )
 
+# ----------------UUID-------------------------
+if(UNIX)
+    target_link_libraries(embedding_engine PRIVATE uuid)
+elseif(WIN32)
+    target_link_libraries(embedding_engine PRIVATE Rpcrt4)
+endif()
+
 if(UNIX)
     if(DEFINED BLAS_LIBRARIES AND NOT "${BLAS_LIBRARIES}" STREQUAL "")
         target_link_libraries(embedding_engine PRIVATE ${BLAS_LIBRARIES})

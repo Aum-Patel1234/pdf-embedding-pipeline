@@ -22,6 +22,13 @@ constexpr const char* INSERT_EMBEDDING_CHUNK_QUERY =
     ") "
     "VALUES ($1, $2, $3, $4, $5, $6)";
 
+constexpr const char* INSERT_EMBEDDING_VECTOR_QUERY =
+    "INSERT INTO embedding_vectors ("
+    "    embedding_chunk_id, "
+    "    embedding"
+    ") "
+    "VALUES ($1, $2)";
+
 // TABLES
 
 // -----------------------------------------------
@@ -62,3 +69,25 @@ constexpr const char* INSERT_EMBEDDING_CHUNK_QUERY =
 //
 // --Ordered retrieval of chunks inside a document CREATE INDEX idx_embedding_chunks_doc_chunk ON
 //     embedding_chunks(document_id, chunk_index);
+
+// ----------------------table 2------------------
+// CREATE TABLE embedding_vectors (
+//     -- Primary key
+//     id BIGSERIAL PRIMARY KEY,
+//
+//     -- Reference to embedding_chunks
+//     embedding_chunk_id BIGINT NOT NULL,
+//
+//     -- The actual vector (768 dims)
+//     embedding VECTOR(768) NOT NULL,
+//
+//     created_at TIMESTAMPTZ DEFAULT now(),
+//
+//     -- ---- Foreign key ----
+//     CONSTRAINT fk_embedding_vectors_chunk
+//         FOREIGN KEY (embedding_chunk_id)
+//         REFERENCES embedding_chunks(id)
+//         ON DELETE CASCADE
+// );
+// CREATE INDEX idx_embedding_vectors_embedding
+// ON embedding_vectors

@@ -1,9 +1,16 @@
 #pragma once
-#include <faiss/IndexFlat.h>
 
+#include <curl/curl.h>
+#include <faiss/IndexFlat.h>
+#include <faiss/IndexFlat.h>  // if you need the FAISS type here
+
+#include <cmath>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 
+#include "../include/consts.hpp"
+#include "../include/logger.hpp"
 #include "../models/document_model.hpp"
 
 struct ContentPart {
@@ -34,7 +41,9 @@ struct BatchEmbedResponse {
 };
 
 // URL: https://ai.google.dev/gemini-api/docs/embeddings#rest
-std::vector<float> getEmbeddings(const char* gemini_api_key_envname, const std::vector<std::string_view>& chunks,
-                                 const ResearchPaper& paper);
+std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname,
+                                              const std::vector<std::string_view>& chunks, const ResearchPaper& paper);
+
+std::vector<std::vector<float>> get_vectors_from_response(const nlohmann::json& j, const size_t documents_size);
 
 // std::vector<float> testEmbedding(const char* gemini_api_key_envname);
