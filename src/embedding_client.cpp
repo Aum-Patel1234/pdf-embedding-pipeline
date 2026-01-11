@@ -13,7 +13,7 @@ static size_t curl_write_cb(void* contents, size_t size, size_t nmemb, void* use
 }
 
 std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname,
-                                              const std::vector<std::string_view>& chunks, const ResearchPaper& paper) {
+                                              const std::vector<std::string_view>& chunks) {
   const char* api_key_c = std::getenv(gemini_api_key_envname);
   if (!api_key_c) {
     logging::log_error("Environment variable '" + std::string(gemini_api_key_envname) + "' is not set.");

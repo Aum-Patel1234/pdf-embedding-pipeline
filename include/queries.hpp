@@ -6,28 +6,76 @@ constexpr const char* GET_PAPERS_QUERY =
     "ORDER BY id "
     "LIMIT $2 OFFSET $3";
 
+// constexpr const char* UPDATE_EMBEDDING_PROCESSED_QUERY =
+//     "UPDATE research_papers "
+//     "SET embedding_processed = true "
+//     "WHERE id = $1";
+
 constexpr const char* UPDATE_EMBEDDING_PROCESSED_QUERY =
     "UPDATE research_papers "
     "SET embedding_processed = true "
-    "WHERE id = $1";
+    "WHERE id = ANY($1::int[])";
 
-constexpr const char* INSERT_EMBEDDING_CHUNK_QUERY =
+// constexpr const char* INSERT_EMBEDDING_CHUNK_QUERY =
+//     "INSERT INTO embedding_chunks ("
+//     "    faiss_id, "
+//     "    document_id, "
+//     "    chunk_index, "
+//     "    page_number, "
+//     "    chunk_text, "
+//     "    embedding_model"
+//     ") "
+//     "VALUES ($1, $2, $3, $4, $5, $6)"
+//     "RETURNING id";
+
+constexpr const char* INSERT_EMBEDDING_CHUNKS_QUERY =
     "INSERT INTO embedding_chunks ("
-    "    faiss_id, "
     "    document_id, "
     "    chunk_index, "
     "    page_number, "
     "    chunk_text, "
     "    embedding_model"
     ") "
-    "VALUES ($1, $2, $3, $4, $5, $6)";
+    "SELECT "
+    "    u.document_id, "
+    "    u.chunk_index, "
+    "    u.page_number, "
+    "    u.chunk_text, "
+    "    u.embedding_model "
+    "FROM UNNEST ("
+    "    $1::bigint[], "
+    "    $2::int[], "
+    "    $3::int[], "
+    "    $4::text[], "
+    "    $5::text[]"
+    ") AS u("
+    "    document_id, "
+    "    chunk_index, "
+    "    page_number, "
+    "    chunk_text, "
+    "    embedding_model"
+    ") "
+    "RETURNING id;";
 
-constexpr const char* INSERT_EMBEDDING_VECTOR_QUERY =
+// constexpr const char* INSERT_EMBEDDING_VECTOR_QUERY =
+//     "INSERT INTO embedding_vectors ("
+//     "    embedding_chunk_id, "
+//     "    embedding"
+//     ") "
+//     "VALUES ($1, $2)";
+
+constexpr const char* INSERT_EMBEDDING_VECTORS_QUERY =
     "INSERT INTO embedding_vectors ("
     "    embedding_chunk_id, "
     "    embedding"
     ") "
-    "VALUES ($1, $2)";
+    "SELECT "
+    "    t.embedding_chunk_id, "
+    "    t.embedding::vector "
+    "FROM UNNEST ("
+    "    $1::bigint[], "
+    "    $2::text[]"
+    ") AS t(embedding_chunk_id, embedding);";
 
 // TABLES
 
@@ -36,7 +84,7 @@ constexpr const char* INSERT_EMBEDDING_VECTOR_QUERY =
 // CREATE TABLE embedding_chunks (
 //     id BIGSERIAL PRIMARY KEY,
 //
-//     -- FAISS vector ID (IndexIDMap ID)
+//     -- FAISS vector ID (IndexIDMap ID) NOTE: deleted column
 //     faiss_id BIGINT NOT NULL UNIQUE,
 //
 //     -- Reference to research_papers
@@ -69,6 +117,12 @@ constexpr const char* INSERT_EMBEDDING_VECTOR_QUERY =
 //
 // --Ordered retrieval of chunks inside a document CREATE INDEX idx_embedding_chunks_doc_chunk ON
 //     embedding_chunks(document_id, chunk_index);
+// -- Drop the index on faiss_id (if it exists)
+// DROP INDEX IF EXISTS idx_embedding_chunks_faiss_id;
+//
+// -- Drop the faiss_id column itself
+// ALTER TABLE embedding_chunks
+// DROP COLUMN IF EXISTS faiss_id;
 
 // ----------------------table 2------------------
 // CREATE TABLE embedding_vectors (

@@ -4,7 +4,7 @@
 #include <cstdint>
 constexpr uint8_t THREADS = 6;
 // constexpr uint32_t LIMITS[6] = {13442, 13442, 13442, 13441, 13441, 13441};
-constexpr uint32_t LIMITS[6] = {1, 0, 0, 0, 0, 0};
+constexpr uint32_t LIMITS[6] = {1, 1, 1, 1, 1, 1};
 constexpr const char* GEMINI_API_KEY = "GEMINI_API_KEY";
 constexpr const char* BATCH_URL =
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents";

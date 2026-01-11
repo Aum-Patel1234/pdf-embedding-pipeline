@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -11,7 +10,7 @@ constexpr std::string_view separators[] = {"\n\n", "\n", " ", ""};
 constexpr uint16_t chunkSize = 1000;
 constexpr uint8_t chunkOverlap = 200;
 constexpr uint8_t lookahead = 200;
-constexpr size_t MIN_CHUNK_CHARS = 100;  // don't embed chunks smaller than this
+constexpr size_t MIN_CHUNK_CHARS = 500;  // don't embed chunks smaller than this
 
 class RecursiveCharacterTextSplitter {
  private:

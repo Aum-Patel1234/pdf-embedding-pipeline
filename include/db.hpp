@@ -10,5 +10,5 @@
 std::unique_ptr<pqxx::connection> connectToDb(const char* DB_CONN_STR);
 void getPapersFromDb(pqxx::work& tx, std::vector<ResearchPaper>& papers, const std::string topic, const uint32_t offset,
                      const uint32_t limit);
-void insert_embedding_chunk(pqxx::work& tx, const EmbeddingChunk& chunk);
-void insert_embedding_vector(pqxx::work& tx, const EmbeddingVector& ev);
+std::vector<int64_t> insert_embedding_chunks(pqxx::work& tx, const std::vector<EmbeddingChunk>& chunks);
+void insert_embedding_vectors(pqxx::work& tx, const std::vector<EmbeddingVector>& vectors);

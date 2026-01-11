@@ -1,5 +1,6 @@
 #include <faiss/IndexFlat.h>
 // #include <faiss/IndexIVFFlat.h>
+#include <faiss/IndexIDMap.h>
 #include <faiss/index_io.h>
 
 #include <cstdint>
@@ -38,7 +39,8 @@ int main() {
   }
 
   // merge faiss indexes
-  faiss::IndexFlatIP final_index(OUTPUT_DIM);
+  faiss::IndexFlatIP base_index(OUTPUT_DIM);
+  faiss::IndexIDMap final_index(&base_index);
   // NOTE: while retriving or searching IndexIVFFlat does do good in RAM - CPU
   // faiss::IndexIVFFlat index(&final_index, OUTPUT_DIM, NLIST, faiss::METRIC_INNER_PRODUCT);
   for (uint8_t i = 0; i < THREADS; ++i) {
@@ -47,15 +49,24 @@ int main() {
       logging::log_error("Shard missing, skipping: " + path);
       continue;
     }
-    faiss::Index* shard = faiss::read_index(path.c_str());
+    std::unique_ptr<faiss::Index> shard(faiss::read_index(path.c_str()));
+    faiss::IndexIDMap* shard_idmap = dynamic_cast<faiss::IndexIDMap*>(shard.get());
 
-    std::vector<float> buffer(shard->ntotal * OUTPUT_DIM);
-    for (faiss::idx_t j = 0; j < shard->ntotal; ++j) {
-      shard->reconstruct(j, buffer.data() + j * OUTPUT_DIM);
+    if (!shard_idmap) {
+      logging::log_error("Shard index is not IndexIDMap: " + path);
+      throw std::runtime_error("Shard index is not IndexIDMap: " + path);
     }
 
-    final_index.add(shard->ntotal, buffer.data());
-    delete shard;
+    // std::vector<float> buffer(shard_idmap->ntotal * OUTPUT_DIM);
+    // std::vector<faiss::idx_t> ids(shard_idmap->ntotal);
+    // for (faiss::idx_t j = 0; j < shard_idmap->ntotal; ++j) {
+    //   shard_idmap->reconstruct(j, buffer.data() + j * OUTPUT_DIM);
+    //   ids[j] = shard_idmap->id_map[j];  // PRESERVE ID
+    // }
+    //
+    // // Add WITH IDs
+    // final_index.add_with_ids(shard_idmap->ntotal, buffer.data(), ids.data());
+    final_index.merge_from(*shard_idmap);
   }
 
   faiss::write_index(&final_index, "paper.faiss");
