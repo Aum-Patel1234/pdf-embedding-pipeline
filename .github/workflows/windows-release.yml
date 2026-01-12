@@ -51,9 +51,11 @@ jobs:
       - name: Collect runtime DLLs
         shell: pwsh
         run: |
-          mkdir runtime
-          copy build/Release/embedding_engine.exe runtime/
-          copy vcpkg/installed/x64-windows/bin/*.dll runtime/
+          New-Item -ItemType Directory -Force runtime
+          Copy-Item build/Release/embedding_engine.exe runtime/
+
+          # Copy all DLLs next to the exe (CMake places them correctly)
+          Get-ChildItem build/Release -Filter *.dll | Copy-Item -Destination runtime
 
       - name: Zip bundle
         run: |
