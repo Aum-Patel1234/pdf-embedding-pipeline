@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include "../include/embeddings_client.hpp"
@@ -12,8 +13,8 @@ static size_t curl_write_cb(void* contents, size_t size, size_t nmemb, void* use
   return size * nmemb;
 }
 
-std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname,
-                                              const std::vector<std::string_view>& chunks) {
+std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname, std::string& MODEL_NAME,
+                                              std::string& BATCH_URL, const std::vector<std::string_view>& chunks) {
   const char* api_key_c = std::getenv(gemini_api_key_envname);
   if (!api_key_c) {
     logging::log_error("Environment variable '" + std::string(gemini_api_key_envname) + "' is not set.");
@@ -60,7 +61,7 @@ std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname
   std::string resp;
   std::string payload_str = payload.dump();
 
-  curl_easy_setopt(curl, CURLOPT_URL, BATCH_URL);
+  curl_easy_setopt(curl, CURLOPT_URL, BATCH_URL.c_str());
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload_str.c_str());
   curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(payload_str.size()));

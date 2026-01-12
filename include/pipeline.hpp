@@ -19,13 +19,14 @@
 #include "logger.hpp"
 #include "recursive_character_text_splitter.hpp"
 
-void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::string& topic, uint32_t offset,
-                        uint32_t limit);
+void embedding_pipeline(const char* DB_CONN_STR, std::string BATCH_URL, std::string MODEL_NAME, uint8_t thread_id,
+                        const std::string& topic, uint32_t offset, uint32_t limit);
 
 std::pair<std::vector<std::vector<float>>, std::vector<float>> get_embeddings_from_embedding_model(
-    const std::vector<std::string_view>& chunks);
+    std::string& MODEL_NAME, std::string& BATCH_URL, const std::vector<std::string_view>& chunks);
 
 void write_to_temp_file_txt_to_debug(const std::vector<std::string_view>& chunks, const std::string& chunks_file);
+uint32_t get_total_papers_topic(std::string topic, const char* db_url);
 
 // NOTE: helper funcs
 inline std::vector<std::string_view> getMeaningfulChunks(const RecursiveCharacterTextSplitter& splitter,
@@ -47,7 +48,7 @@ inline std::vector<std::string_view> getMeaningfulChunks(const RecursiveCharacte
 inline std::vector<faiss::idx_t> storeChunksAndGetIds(pqxx::work& tx,
                                                       const std::vector<std::string_view>& meaningful_chunks,
                                                       int64_t document_id, uint32_t page_no, uint32_t& chunk_index,
-                                                      const std::string& model_name = MODEL_NAME) {
+                                                      const std::string& model_name) {
   std::vector<EmbeddingChunk> embedding_chunks;
   embedding_chunks.reserve(meaningful_chunks.size());
 

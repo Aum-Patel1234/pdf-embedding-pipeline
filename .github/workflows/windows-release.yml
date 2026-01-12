@@ -48,17 +48,34 @@ jobs:
         run: |
           cmake --build build --config Release --parallel
 
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: embedding_engine_windows
-          path: build/Release/embedding_engine.exe
+      - name: Collect runtime DLLs
+        shell: pwsh
+        run: |
+          mkdir runtime
+          copy build/Release/embedding_engine.exe runtime/
+          copy vcpkg/installed/x64-windows/bin/*.dll runtime/
+
+      - name: Zip bundle
+        run: |
+          Compress-Archive -Path runtime/* -DestinationPath embedding_engine_windows.zip
+
+      # - name: Upload executable
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: embedding_engine_windows
+      #     path: build/Release/embedding_engine.exe
 
 
       # ---------------- Upload to GitHub Release ----------------
-      - name: Upload EXE to GitHub Release
+      # - name: Upload EXE to GitHub Release
+      #   uses: softprops/action-gh-release@v2
+      #   with:
+      #     files: build/Release/embedding_engine.exe
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/Release/embedding_engine.exe
+          files: embedding_engine_windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

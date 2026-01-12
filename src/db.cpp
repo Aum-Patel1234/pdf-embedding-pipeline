@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <pqxx/internal/concat.hxx>
 #include <vector>
 
@@ -102,4 +101,12 @@ void insert_embedding_vectors(pqxx::work& tx, const std::vector<EmbeddingVector>
   }
 
   tx.exec_params(INSERT_EMBEDDING_VECTORS_QUERY, embedding_chunk_ids, embeddings);
+}
+
+uint32_t get_total_papers_for_topic(pqxx::work& tx, const std::string& topic) {
+  pqxx::result r = tx.exec_params(COUNT_PAPERS_QUERY, topic);
+
+  tx.commit();
+
+  return r[0][0].as<uint32_t>();
 }

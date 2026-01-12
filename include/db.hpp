@@ -12,3 +12,4 @@ void getPapersFromDb(pqxx::work& tx, std::vector<ResearchPaper>& papers, const s
                      const uint32_t limit);
 std::vector<int64_t> insert_embedding_chunks(pqxx::work& tx, const std::vector<EmbeddingChunk>& chunks);
 void insert_embedding_vectors(pqxx::work& tx, const std::vector<EmbeddingVector>& vectors);
+uint32_t get_total_papers_for_topic(pqxx::work& tx, const std::string& topic);

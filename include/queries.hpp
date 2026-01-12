@@ -77,6 +77,10 @@ constexpr const char* INSERT_EMBEDDING_VECTORS_QUERY =
     "    $2::text[]"
     ") AS t(embedding_chunk_id, embedding);";
 
+constexpr const char* COUNT_PAPERS_QUERY =
+    "SELECT COUNT(*) "
+    "FROM research_papers "
+    "WHERE topic = $1";
 // TABLES
 
 // -----------------------------------------------

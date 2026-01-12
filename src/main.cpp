@@ -3,6 +3,7 @@
 #include <faiss/IndexIDMap.h>
 #include <faiss/index_io.h>
 
+#include <array>
 #include <cstdint>
 #include <pqxx/pqxx>
 #include <thread>
@@ -14,29 +15,30 @@
 #include "../include/pipeline.hpp"
 
 int main() {
-  loadenv("../.env");  // running from inside build/ dir
-  // loadenv();
+  loadenv();
   const char* db_url = std::getenv("DATABASE_URL");
   if (!db_url) {
     logging::log_error("DATABASE_URL is absent.");
     return 1;
   }
 
-  const std::string topic = "natural language processing";
+  const std::string topic = std::getenv("TOPIC");
+  const std::string BATCH_URL = std::getenv("BATCH_URL");
+  const std::string MODEL_NAME = std::getenv("MODEL_NAME");
+  // std::array<uint32_t, THREADS> LIMITS = getLimits(THREADS, get_total_papers_topic(topic, db_url));
+  std::array<uint32_t, THREADS> LIMITS = {1, 1, 1, 1, 1, 1, 1, 1};
   uint32_t offset = 0;
 
   std::vector<std::thread> threads;
   std::filesystem::create_directories("faiss");
   threads.reserve(THREADS);
   for (uint8_t i = 0; i < THREADS; ++i) {
-    threads.emplace_back(embedding_pipeline, db_url, i, topic, offset, LIMITS[i]);
+    threads.emplace_back(embedding_pipeline, db_url, BATCH_URL, MODEL_NAME, i, topic, offset, LIMITS[i]);
     offset += LIMITS[i];
   }
 
   // wait for all threads
-  for (auto& t : threads) {
-    t.join();
-  }
+  for (auto& t : threads) t.join();
 
   // merge faiss indexes
   faiss::IndexFlatIP base_index(OUTPUT_DIM);

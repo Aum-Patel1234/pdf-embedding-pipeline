@@ -1,7 +1,11 @@
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <string>
+
+#include "consts.hpp"
 
 #ifdef _WIN32
 #include <cstdlib>
@@ -32,4 +36,16 @@ inline void loadenv(const std::string& path = ".env") {
 
     set_env(key.c_str(), val.c_str());
   }
+}
+
+inline std::array<uint32_t, THREADS> getLimits(const uint8_t threads, const uint32_t totalPapers) {
+  std::array<uint32_t, THREADS> limits;
+  uint32_t mod = totalPapers % threads;
+  uint32_t div = totalPapers / threads;
+
+  for (uint32_t i = 0; i < THREADS; ++i) {
+    limits[i] = (i < mod) ? div + 1 : div;
+  }
+
+  return limits;
 }

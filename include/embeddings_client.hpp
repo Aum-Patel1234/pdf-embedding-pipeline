@@ -41,8 +41,8 @@ struct BatchEmbedResponse {
 };
 
 // URL: https://ai.google.dev/gemini-api/docs/embeddings#rest
-std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname,
-                                              const std::vector<std::string_view>& chunks);
+std::vector<std::vector<float>> getEmbeddings(const char* gemini_api_key_envname, std::string& MODEL_NAME,
+                                              std::string& BATCH_URL, const std::vector<std::string_view>& chunks);
 
 std::vector<std::vector<float>> get_vectors_from_response(const nlohmann::json& j, const size_t documents_size);
 

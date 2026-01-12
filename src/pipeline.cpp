@@ -1,5 +1,9 @@
 #include "../include/pipeline.hpp"
 
+#include <iostream>
+#include <memory>
+#include <string>
+
 #include "consts.hpp"
 #include "db.hpp"
 #include "embeddings_client.hpp"
@@ -19,8 +23,8 @@
 //   }
 // }
 
-void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::string& topic, uint32_t offset,
-                        uint32_t limit) {
+void embedding_pipeline(const char* DB_CONN_STR, std::string BATCH_URL, std::string MODEL_NAME, uint8_t thread_id,
+                        const std::string& topic, uint32_t offset, uint32_t limit) {
   std::unique_ptr<pqxx::connection> conn = connectToDb(DB_CONN_STR);
   pqxx::work tx{*conn};
 
@@ -40,6 +44,7 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
     for (auto& researchPaper : papers) {
       // step 1 - save the pdf to temp file
       savePDFtoTextFile(researchPaper.pdf_url, file_path);
+      std::cout << "PAPER - " << researchPaper.title << "\n";
       bool processed = false;
 
       // step 2 - read the pdf_file and extract text our of it
@@ -55,7 +60,7 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
         // for debugging chunks
         write_to_temp_file_txt_to_debug(meaningful_chunks, chunks_file);
         // step 4 - get embeddings from the embedding_model
-        auto result = get_embeddings_from_embedding_model(meaningful_chunks);
+        auto result = get_embeddings_from_embedding_model(MODEL_NAME, BATCH_URL, meaningful_chunks);
         std::vector<std::vector<float>>& vec_of_embeddings = result.first;
         if (vec_of_embeddings.size() != meaningful_chunks.size()) {
           logging::log_error("vector size and chunks size is different");
@@ -107,7 +112,7 @@ void embedding_pipeline(const char* DB_CONN_STR, uint8_t thread_id, const std::s
 }
 
 std::pair<std::vector<std::vector<float>>, std::vector<float>> get_embeddings_from_embedding_model(
-    const std::vector<std::string_view>& chunks) {
+    std::string& MODEL_NAME, std::string& BATCH_URL, const std::vector<std::string_view>& chunks) {
   // NOTE: do in batches as Gemini has rate-limit, see in consts.hpp
   std::vector<float> flatten_embeddings;
   std::vector<std::vector<float>> all_embeddings;
@@ -119,7 +124,7 @@ std::pair<std::vector<std::vector<float>>, std::vector<float>> get_embeddings_fr
 
     std::vector<std::string_view> batch(chunks.begin() + i, chunks.begin() + end);
 
-    auto batch_embeddings = getEmbeddings(GEMINI_API_KEY, batch);
+    auto batch_embeddings = getEmbeddings(GEMINI_API_KEY, MODEL_NAME, BATCH_URL, batch);
     if (batch_embeddings.empty()) {
       logging::log_error("Embedding batch failed");
       break;
@@ -162,4 +167,10 @@ void write_to_temp_file_txt_to_debug(const std::vector<std::string_view>& chunks
     ofs.write(chunk.data(), chunk.size());
     ofs << "\n\n";
   }
+}
+
+uint32_t get_total_papers_topic(std::string topic, const char* db_url) {
+  std::unique_ptr<pqxx::connection> conn = connectToDb(db_url);
+  pqxx::work tx{*conn};
+  return get_total_papers_for_topic(tx, topic);
 }

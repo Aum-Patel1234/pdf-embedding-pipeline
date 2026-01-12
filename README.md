@@ -29,6 +29,31 @@ Related project: https://github.com/Aum-Patel1234/researchq
 
 ---
 
-## Setup
+## Setup (to rebuild using cmake)
 
 See `INSTALL.md` for build and setup instructions.
+
+## Installation (via Release ZIP ONLY for Windows)
+
+You can install the Embedding Engine without building from source by using the prebuilt binaries available in **GitHub Releases**.
+
+### 1. Download Release
+- Go to the **Releases** page  
+- Download the latest `embedding_engine.zip`
+- Extract it:
+
+```bash
+unzip embedding_engine.zip
+cd embedding_engine
+```
+
+### 2. make .env
+
+```bash
+DATABASE_URL=
+GEMINI_API_KEY=
+TOPIC="natural language processing"
+BATCH_URL=
+MODEL_NAME=
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/final_year_rag
+```
