@@ -1,5 +1,6 @@
 #include "../include/pipeline.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -49,6 +50,9 @@ void embedding_pipeline(const char* DB_CONN_STR, std::string BATCH_URL, std::str
 
       // step 2 - read the pdf_file and extract text our of it
       std::vector<std::pair<uint32_t, std::string>> page_content = read_file(file_path);
+      logging::log_checkpoint("PDF read, pages: " + std::to_string(page_content.size()));
+      fs::remove(file_path);  // clean up
+
       uint32_t chunk_index = 0;
       for (auto& [page_no, content] : page_content) {
         content = r.cleanText(content);
@@ -56,14 +60,18 @@ void embedding_pipeline(const char* DB_CONN_STR, std::string BATCH_URL, std::str
         // step 3 - get chunks out of raw content
         std::vector<std::string_view> meaningful_chunks = getMeaningfulChunks(r, content);
         if (meaningful_chunks.empty()) continue;
+        logging::log_checkpoint("Page " + std::to_string(page_no) +
+                                " meaningful chunks: " + std::to_string(meaningful_chunks.size()));
 
         // for debugging chunks
-        write_to_temp_file_txt_to_debug(meaningful_chunks, chunks_file);
+        // write_to_temp_file_txt_to_debug(meaningful_chunks, chunks_file);
         // step 4 - get embeddings from the embedding_model
         auto result = get_embeddings_from_embedding_model(MODEL_NAME, BATCH_URL, meaningful_chunks);
         std::vector<std::vector<float>>& vec_of_embeddings = result.first;
         if (vec_of_embeddings.size() != meaningful_chunks.size()) {
-          logging::log_error("vector size and chunks size is different");
+          logging::log_error("Page " + std::to_string(page_no) + " vector size (" +
+                             std::to_string(vec_of_embeddings.size()) + ") != chunks size (" +
+                             std::to_string(meaningful_chunks.size()) + ")");
         }
         size_t n = vec_of_embeddings.size();
         std::vector<float>& flatten_embeddings = result.second;
@@ -71,7 +79,12 @@ void embedding_pipeline(const char* DB_CONN_STR, std::string BATCH_URL, std::str
         // step 5 -  TODO: store metadata and store the vector in embedding_vector table
         std::vector<faiss::idx_t> faiss_ids =
             storeChunksAndGetIds(tx, meaningful_chunks, researchPaper.id, page_no, chunk_index, MODEL_NAME);
+        if (faiss_ids.size() != meaningful_chunks.size()) {
+          logging::log_error("Chunk IDs size (" + std::to_string(faiss_ids.size()) + ") != meaningful_chunks size (" +
+                             std::to_string(meaningful_chunks.size()) + ")");
+        }
         insert_embedding_vectors(tx, make_embedding_vectors(vec_of_embeddings, faiss_ids));
+        logging::log_checkpoint("Page " + std::to_string(page_no) + " embeddings stored, chunks: " + std::to_string(n));
 
         // step 6 - add it to the faiss_index
         // ---- Normalize for cosine similarity ----
@@ -81,8 +94,10 @@ void embedding_pipeline(const char* DB_CONN_STR, std::string BATCH_URL, std::str
       }
 
       if (processed) processed_ids.push_back(researchPaper.id);
+      logging::log_checkpoint("Finished paper ID=" + std::to_string(researchPaper.id));
     }
 
+    logging::log_checkpoint("Going to update db " + std::to_string(processed_ids.size()));
     if (index.ntotal > 0) {
       // std::lock_guard<std::mutex> lock_guard(faiss_utils::faiss_index_mutex());
       // faiss::write_index(index.get(), "papers.faiss");
@@ -167,6 +182,8 @@ void write_to_temp_file_txt_to_debug(const std::vector<std::string_view>& chunks
     ofs.write(chunk.data(), chunk.size());
     ofs << "\n\n";
   }
+
+  ofs.close();
 }
 
 uint32_t get_total_papers_topic(std::string topic, const char* db_url) {

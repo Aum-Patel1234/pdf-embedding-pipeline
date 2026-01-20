@@ -9,8 +9,8 @@ enum class PaperSource { ARXIV, SEMANTIC_SCHOLAR, SPRINGER_NATURE };
 
 inline PaperSource stringToPaperSource(const std::string& s) {
   if (s == "arxiv") return PaperSource::ARXIV;
-  if (s == "semantic_scholar") return PaperSource::SEMANTIC_SCHOLAR;
-  if (s == "springer_nature") return PaperSource::SPRINGER_NATURE;
+  if (s == "semanticscholar") return PaperSource::SEMANTIC_SCHOLAR;
+  if (s == "springernature") return PaperSource::SPRINGER_NATURE;
   throw std::runtime_error("Unknown paper source: " + s);
 }
 

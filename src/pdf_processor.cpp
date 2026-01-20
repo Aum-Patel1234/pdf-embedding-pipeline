@@ -15,7 +15,7 @@ std::vector<std::pair<uint32_t, std::string>> read_file(std::string_view file_pa
     return pages_text;
   }
 
-  poppler::document* doc = poppler::document::load_from_file(file_path.data());
+  std::unique_ptr<poppler::document> doc(poppler::document::load_from_file(file_path.data()));
   if (!doc) {
     logging::log_error("Failed to open PDF: " + std::string(file_path));
     return pages_text;

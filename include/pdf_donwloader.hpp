@@ -10,4 +10,6 @@
 #include <stdexcept>
 #include <string_view>
 
+namespace fs = std::filesystem;
+fs::path makeThreadTempFile(const fs::path& final_path);
 void savePDFtoTextFile(std::string_view pdf_url, std::string_view file_path);
